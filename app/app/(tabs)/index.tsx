@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLiveTelemetry } from '@/hooks/useLiveTelemetry';
 import { useTelemetryStore } from '@/stores/telemetry.store';
 import { useCrashStore } from '@/stores/crash.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { buildMockCrash } from '@/services/mock/crash.mock';
 import { SpeedGauge } from '@/components/dashboard/SpeedGauge';
 import { GForceBar } from '@/components/dashboard/GForceBar';
@@ -20,6 +21,8 @@ export default function Dashboard() {
   const peakG = useTelemetryStore((s) => s.peakGRecent);
   const resetPeak = useTelemetryStore((s) => s.resetPeak);
   const trigger = useCrashStore((s) => s.trigger);
+  const user = useAuthStore((s) => s.user);
+  const firstName = user?.name.split(' ')[0] ?? 'driver';
 
   const simulateCrash = () => {
     const loc = frame?.location ?? { lat: 30.0444, lng: 31.2357 };
@@ -33,7 +36,7 @@ export default function Dashboard() {
         <View style={styles.header}>
           <View>
             <Text style={styles.brand}>🛡️ GuardianDash</Text>
-            <Text style={styles.greeting}>Drive safe, Mohamed</Text>
+            <Text style={styles.greeting}>Drive safe, {firstName}</Text>
           </View>
           <StatusPill status={status} />
         </View>

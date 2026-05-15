@@ -1,55 +1,82 @@
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
+import { useAuthStore } from '@/stores/auth.store';
+import { useContactsStore } from '@/stores/contacts.store';
 import { colors } from '@/constants/colors';
 
-const contacts = [
-  { name: 'Mom 🤍', phone: '+20 100 123 4567', priority: 1 },
-  { name: 'Dad', phone: '+20 100 765 4321', priority: 2 },
-  { name: 'Judy (sister)', phone: '+20 122 555 9988', priority: 3 },
-];
-
-function Row({ icon, title, sub, right }: { icon: string; title: string; sub?: string; right?: React.ReactNode }) {
+function Row({
+  icon,
+  title,
+  sub,
+  right,
+  onPress,
+}: {
+  icon: string;
+  title: string;
+  sub?: string;
+  right?: React.ReactNode;
+  onPress?: () => void;
+}) {
   return (
-    <View style={styles.row}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && onPress ? { opacity: 0.6 } : null]}>
       <View style={styles.rowLeft}>
         <Text style={styles.icon}>{icon}</Text>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{title}</Text>
           {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
         </View>
       </View>
       {right}
-    </View>
+    </Pressable>
   );
 }
 
 export default function Profile() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const contacts = useContactsStore((s) => s.contacts);
   const [notif, setNotif] = useState(true);
   const [autoCall, setAutoCall] = useState(true);
+
+  const initial = user?.name.charAt(0).toUpperCase() ?? '?';
+  const enabledContacts = contacts.filter((c) => c.enabled).length;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.avatarBox}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>M</Text>
+            <Text style={styles.avatarText}>{initial}</Text>
           </View>
-          <Text style={styles.name}>Mohamed Eldairouty</Text>
-          <Text style={styles.email}>chatgptacc.nd@gmail.com</Text>
+          <Text style={styles.name}>{user?.name ?? 'Guest'}</Text>
+          <Text style={styles.email}>{user?.email ?? ''}</Text>
         </View>
 
         <Text style={styles.section}>EMERGENCY CONTACTS</Text>
         <View style={styles.card}>
-          {contacts.map((c, i) => (
-            <View key={c.phone}>
+          <Row
+            icon="📞"
+            title="Manage contacts"
+            sub={`${enabledContacts} active · ${contacts.length} total`}
+            right={<Text style={styles.chev}>›</Text>}
+            onPress={() => router.push('/contacts')}
+          />
+          {contacts.slice(0, 3).map((c, i) => (
+            <View key={c.id}>
+              <View style={styles.divider} />
               <Row
                 icon={`#${c.priority}`}
                 title={c.name}
-                sub={c.phone}
-                right={<Text style={styles.chev}>›</Text>}
+                sub={`${c.relationship} · ${c.phone}`}
+                right={
+                  <Text style={[styles.chev, { color: c.enabled ? colors.success : colors.textDim }]}>
+                    {c.enabled ? '●' : '○'}
+                  </Text>
+                }
+                onPress={() => router.push({ pathname: '/contacts/edit', params: { id: c.id } })}
               />
-              {i < contacts.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
         </View>
@@ -101,6 +128,10 @@ export default function Profile() {
           <Row icon="👥" title="Team" sub="Mohamed · Rimas · Judy · Moaz" />
         </View>
 
+        <Pressable style={styles.logout} onPress={logout}>
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+
         <Text style={styles.footer}>🛡️  Drive safe.</Text>
       </ScrollView>
     </SafeAreaView>
@@ -142,5 +173,14 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border, marginLeft: 56 },
   chev: { color: colors.textDim, fontSize: 22, fontWeight: '300' },
   greenDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
-  footer: { color: colors.textDim, fontSize: 12, textAlign: 'center', marginTop: 24 },
+  logout: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    alignItems: 'center',
+  },
+  logoutText: { color: colors.danger, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
+  footer: { color: colors.textDim, fontSize: 12, textAlign: 'center', marginTop: 16 },
 });

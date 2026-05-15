@@ -1,12 +1,15 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockTrips, formatDuration, formatWhen } from '@/services/mock/trips.mock';
+import { mockTrips, formatDuration, formatWhen, centerOfPath } from '@/services/mock/trips.mock';
+import { TileMap } from '@/components/map/TileMap';
 import { colors } from '@/constants/colors';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const trip = mockTrips.find((t) => t.id === id);
+  const { width: winW } = useWindowDimensions();
+  const mapW = Math.min(winW - 40, 500);
 
   if (!trip) {
     return (
@@ -17,12 +20,50 @@ export default function TripDetail() {
     );
   }
 
+  const center = centerOfPath(trip.path);
+  const start = trip.path[0];
+  const end = trip.path[trip.path.length - 1];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen options={{ title: formatWhen(trip.startedAt), headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.back}>← Back</Text>
+        </Pressable>
+        <View>
+          <Text style={styles.headerTitle}>{formatWhen(trip.startedAt)}</Text>
+          <Text style={styles.headerSub}>{formatDuration(trip.endedAt - trip.startedAt)} drive</Text>
+        </View>
+        <View style={{ width: 60 }} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>🚗 {formatWhen(trip.startedAt)}</Text>
-        <Text style={styles.sub}>{formatDuration(trip.endedAt - trip.startedAt)} drive</Text>
+        <View style={{ alignItems: 'center' }}>
+          <TileMap
+            center={center}
+            zoom={trip.distanceKm > 20 ? 12 : 14}
+            width={mapW}
+            height={260}
+            path={trip.path}
+            markers={[
+              ...(start ? [{ lat: start.lat, lng: start.lng, color: colors.success, pulse: false }] : []),
+              ...(end ? [{ lat: end.lat, lng: end.lng, color: trip.crashCount > 0 ? colors.danger : colors.primary, pulse: false }] : []),
+            ]}
+          />
+        </View>
+
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: colors.success }]} />
+            <Text style={styles.legendText}>Start</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: trip.crashCount > 0 ? colors.danger : colors.primary }]} />
+            <Text style={styles.legendText}>{trip.crashCount > 0 ? 'Crash location' : 'End'}</Text>
+          </View>
+        </View>
 
         <View style={styles.grid}>
           <View style={styles.card}>
@@ -46,12 +87,6 @@ export default function TripDetail() {
             <Text style={styles.cardUnit}>events</Text>
           </View>
         </View>
-
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderEmoji}>🗺️</Text>
-          <Text style={styles.placeholderText}>Route map + telemetry replay</Text>
-          <Text style={styles.placeholderSub}>Coming in Step 3 — polyline, scrubber, charts</Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -59,9 +94,25 @@ export default function TripDetail() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: { width: 60 },
+  back: { color: colors.primaryGlow, fontSize: 14, fontWeight: '600' },
+  headerTitle: { color: colors.text, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  headerSub: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 2 },
   scroll: { padding: 20, paddingBottom: 32 },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
-  sub: { color: colors.textMuted, fontSize: 14, marginTop: 4, marginBottom: 20 },
+  title: { color: colors.text, fontSize: 24, fontWeight: '800', padding: 20 },
+  legend: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 12, marginBottom: 16 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { color: colors.textMuted, fontSize: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
     width: '47%',
@@ -75,18 +126,4 @@ const styles = StyleSheet.create({
   cardLabel: { color: colors.textMuted, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' },
   cardValue: { color: colors.text, fontSize: 32, fontWeight: '700', marginTop: 6, fontVariant: ['tabular-nums'] },
   cardUnit: { color: colors.textMuted, fontSize: 12 },
-  placeholder: {
-    marginTop: 24,
-    height: 200,
-    backgroundColor: colors.bgElevated,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderStyle: 'dashed',
-  },
-  placeholderEmoji: { fontSize: 40 },
-  placeholderText: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 8 },
-  placeholderSub: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
 });

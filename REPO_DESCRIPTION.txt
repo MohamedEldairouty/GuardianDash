@@ -1,0 +1,1 @@
+🛡️ A smart vehicle black box that detects crashes, streams live telemetry to your phone, and auto-calls your emergency contacts. Built with React Native, Expo, Node.js, and STM32. Final project for Embedded Systems course.

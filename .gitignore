@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Native
+*.iml
+*.hprof
+.gradle/
+local.properties
+android/app/build/
+ios/build/
+ios/Pods/
+
+# Metro
+.metro-health-check*
+
+# Builds
+build/
+out/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Misc
+*.tsbuildinfo
+coverage/
+
+# Hardware build artifacts
+hardware/stm32/build/
+hardware/stm32/Debug/
+hardware/stm32/Release/
+*.elf
+*.bin
+*.hex
+*.map
+
+# Docs build
+docs/build/

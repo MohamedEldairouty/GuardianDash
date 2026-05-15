@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useContactsStore } from '@/stores/contacts.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { colors } from '@/constants/colors';
 
 function Row({
@@ -37,8 +38,16 @@ export default function Profile() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const contacts = useContactsStore((s) => s.contacts);
+  const sensitivity = useSettingsStore((s) => s.sensitivity);
+  const threshold = useSettingsStore((s) => s.threshold);
+  const loadSettings = useSettingsStore((s) => s.load);
+  const settingsLoaded = useSettingsStore((s) => s.loaded);
   const [notif, setNotif] = useState(true);
   const [autoCall, setAutoCall] = useState(true);
+
+  useEffect(() => {
+    if (!settingsLoaded) loadSettings();
+  }, [settingsLoaded, loadSettings]);
 
   const initial = user?.name.charAt(0).toUpperCase() ?? '?';
   const enabledContacts = contacts.filter((c) => c.enabled).length;
@@ -111,7 +120,13 @@ export default function Profile() {
             }
           />
           <View style={styles.divider} />
-          <Row icon="🎚️" title="Crash sensitivity" sub="Medium — 3.5g threshold" right={<Text style={styles.chev}>›</Text>} />
+          <Row
+            icon="🎚️"
+            title="Crash sensitivity"
+            sub={`${sensitivity[0].toUpperCase() + sensitivity.slice(1)} — ${threshold.toFixed(1)}g threshold`}
+            right={<Text style={styles.chev}>›</Text>}
+            onPress={() => router.push('/settings/sensitivity')}
+          />
         </View>
 
         <Text style={styles.section}>DEVICE</Text>

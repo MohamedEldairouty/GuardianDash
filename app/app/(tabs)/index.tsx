@@ -27,7 +27,7 @@ export default function Dashboard() {
 
   const simulateCrash = () => {
     const loc = frame?.location ?? { lat: 30.0444, lng: 31.2357 };
-    trigger(buildMockCrash(loc));
+    trigger(buildMockCrash(loc), recent);
     router.push('/alert');
   };
 

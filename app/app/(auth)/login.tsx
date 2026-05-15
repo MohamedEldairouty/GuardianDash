@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { TextField } from '@/components/ui/TextField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { Logo } from '@/components/ui/Logo';
 import { colors } from '@/constants/colors';
 
 export default function Login() {
@@ -28,9 +29,7 @@ export default function Login() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
-            <Text style={styles.logo}>🛡️</Text>
-            <Text style={styles.brand}>GuardianDash</Text>
-            <Text style={styles.tagline}>Smart driving. Safer lives.</Text>
+            <Logo size={110} />
           </View>
 
           <View style={styles.card}>
@@ -84,9 +83,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: 24, flexGrow: 1, justifyContent: 'center' },
   hero: { alignItems: 'center', marginBottom: 28 },
-  logo: { fontSize: 56 },
-  brand: { color: colors.text, fontSize: 28, fontWeight: '800', marginTop: 8 },
-  tagline: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
   card: {
     backgroundColor: colors.bgElevated,
     borderRadius: 24,

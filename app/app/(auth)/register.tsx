@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { TextField } from '@/components/ui/TextField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { LogoMark } from '@/components/ui/Logo';
 import { colors } from '@/constants/colors';
 
 export default function Register() {
@@ -32,7 +33,12 @@ export default function Register() {
             <Text style={styles.back}>← Back</Text>
           </Pressable>
 
-          <Text style={styles.title}>Create your{`\n`}guardian account 🛡️</Text>
+          <View style={styles.heroRow}>
+            <LogoMark size={56} />
+            <View style={{ marginLeft: 14, flex: 1 }}>
+              <Text style={styles.title}>Create your{`\n`}guardian account</Text>
+            </View>
+          </View>
           <Text style={styles.sub}>Stay protected on every drive.</Text>
 
           <View style={styles.card}>
@@ -75,7 +81,8 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, flexGrow: 1, justifyContent: 'center' },
   backBtn: { alignSelf: 'flex-start', marginBottom: 12 },
   back: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
-  title: { color: colors.text, fontSize: 26, fontWeight: '800', lineHeight: 32 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  title: { color: colors.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
   sub: { color: colors.textMuted, fontSize: 14, marginTop: 6, marginBottom: 24 },
   card: {
     backgroundColor: colors.bgElevated,

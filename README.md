@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/logo.png" alt="GuardianDash Logo" width="220"/>
+  <img src="assets/logo/logo.svg" alt="GuardianDash Logo" width="240"/>
 </p>
 
 <h1 align="center">🛡️ GuardianDash — Your Vehicle's Black Box & Guardian Angel</h1>

@@ -1,0 +1,114 @@
+<svg width="280" height="340" viewBox="0 0 280 340" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="GuardianDash logo">
+  <defs>
+    <linearGradient id="shieldFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A2030"/>
+      <stop offset="1" stop-color="#0B0F1A"/>
+    </linearGradient>
+    <linearGradient id="shieldStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+    <linearGradient id="arcGrad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="0.55" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <radialGradient id="hubGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#60A5FA" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#60A5FA" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <!-- ============ ICON ============ -->
+  <g transform="translate(12 12)">
+    <!-- Shield silhouette -->
+    <path d="M128 4 L222 38 V114 C222 166 184 206 128 228 C72 206 34 166 34 114 V38 Z"
+          fill="url(#shieldFill)"
+          stroke="url(#shieldStroke)"
+          stroke-width="4"
+          stroke-linejoin="round"/>
+
+    <!-- Soft halo behind gauge -->
+    <circle cx="128" cy="108" r="64" fill="url(#hubGlow)"/>
+
+    <!-- Gauge background track (270°) -->
+    <path d="M 79.4 157.5 A 70 70 0 1 1 176.6 157.5"
+          stroke="#1F2740"
+          stroke-width="14"
+          stroke-linecap="round"
+          fill="none"/>
+
+    <!-- Gauge progress arc (~72%, glowy) -->
+    <path d="M 79.4 157.5 A 70 70 0 1 1 184.3 63.2"
+          stroke="url(#arcGrad)"
+          stroke-width="14"
+          stroke-linecap="round"
+          fill="none"
+          filter="url(#softGlow)"
+          opacity="0.55"/>
+    <path d="M 79.4 157.5 A 70 70 0 1 1 184.3 63.2"
+          stroke="url(#arcGrad)"
+          stroke-width="10"
+          stroke-linecap="round"
+          fill="none"/>
+
+    <!-- Tick marks -->
+    <g stroke="#60A5FA" stroke-width="2" stroke-linecap="round" opacity="0.55">
+      <line x1="65" y1="143" x2="73" y2="150"/>
+      <line x1="60" y1="108" x2="70" y2="108"/>
+      <line x1="80" y1="58" x2="86" y2="66"/>
+      <line x1="128" y1="38" x2="128" y2="48"/>
+      <line x1="176" y1="58" x2="170" y2="66"/>
+      <line x1="196" y1="108" x2="186" y2="108"/>
+      <line x1="191" y1="143" x2="183" y2="150"/>
+    </g>
+
+    <!-- Needle -->
+    <g transform="translate(128 108)">
+      <polygon points="-3,6 3,6 1,-54 -1,-54" fill="#FFFFFF" transform="rotate(50)"/>
+    </g>
+
+    <!-- Center hub -->
+    <circle cx="128" cy="108" r="11" fill="#0B0F1A" stroke="#60A5FA" stroke-width="2"/>
+    <circle cx="128" cy="108" r="4.5" fill="#FFFFFF"/>
+
+    <!-- Live pulse dot -->
+    <circle cx="200" cy="198" r="6" fill="#10B981"/>
+    <circle cx="200" cy="198" r="11" fill="#10B981" opacity="0.25"/>
+  </g>
+
+  <!-- ============ WORDMARK ============ -->
+  <!-- Decorative separator line with gradient fade -->
+  <defs>
+    <linearGradient id="sepGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#60A5FA" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#60A5FA" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#60A5FA" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <line x1="60" y1="266" x2="220" y2="266" stroke="url(#sepGrad)" stroke-width="1.5"/>
+
+  <!-- App name -->
+  <text x="140" y="298"
+        text-anchor="middle"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        font-size="28"
+        font-weight="800"
+        letter-spacing="0.5">
+    <tspan fill="#FFFFFF">Guardian</tspan><tspan fill="#60A5FA">Dash</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="140" y="320"
+        text-anchor="middle"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        font-size="10"
+        font-weight="600"
+        letter-spacing="3"
+        fill="#5A6276">
+    SMART DRIVING · SAFER LIVES
+  </text>
+</svg>

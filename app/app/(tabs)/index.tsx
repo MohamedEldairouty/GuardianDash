@@ -5,6 +5,7 @@ import { useLiveTelemetry } from '@/hooks/useLiveTelemetry';
 import { useTelemetryStore } from '@/stores/telemetry.store';
 import { useCrashStore } from '@/stores/crash.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { LogoMark } from '@/components/ui/Logo';
 import { buildMockCrash } from '@/services/mock/crash.mock';
 import { SpeedGauge } from '@/components/dashboard/SpeedGauge';
 import { GForceBar } from '@/components/dashboard/GForceBar';
@@ -34,9 +35,15 @@ export default function Dashboard() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.brand}>🛡️ GuardianDash</Text>
-            <Text style={styles.greeting}>Drive safe, {firstName}</Text>
+          <View style={styles.brandRow}>
+            <LogoMark size={40} />
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.brand}>
+                <Text style={{ color: colors.text }}>Guardian</Text>
+                <Text style={{ color: colors.primaryGlow }}>Dash</Text>
+              </Text>
+              <Text style={styles.greeting}>Drive safe, {firstName}</Text>
+            </View>
           </View>
           <StatusPill status={status} />
         </View>
@@ -90,7 +97,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: 20, paddingBottom: 32, gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: 0.3 },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  brand: { fontSize: 20, fontWeight: '800', letterSpacing: 0.3 },
   greeting: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   gaugeWrap: { alignItems: 'center', paddingVertical: 4 },
   row: { flexDirection: 'row' },

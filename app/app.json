@@ -16,7 +16,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.guardiandash.app",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
         "NSLocationWhenInUseUsageDescription": "GuardianDash uses your location to show your live trip on the map and tag crash events.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "GuardianDash needs background location to track your trips and detect crashes while driving."
       }
@@ -40,8 +39,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      "expo-notifications"
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true

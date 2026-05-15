@@ -9,7 +9,7 @@ import { CRASH } from '@/constants/thresholds';
 export default function CrashAlert() {
   const active = useCrashStore((s) => s.active);
   const dismiss = useCrashStore((s) => s.dismiss);
-  const [secs, setSecs] = useState(CRASH.autoCallCountdownSec);
+  const [secs, setSecs] = useState<number>(CRASH.autoCallCountdownSec);
 
   useEffect(() => {
     const t = setInterval(() => setSecs((s) => Math.max(0, s - 1)), 1000);

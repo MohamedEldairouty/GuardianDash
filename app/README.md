@@ -26,7 +26,7 @@ Scan the QR code in **Expo Go**. The dashboard streams **mock telemetry** so the
 ## Status
 
 - ✅ Repo + scaffold + nav shell + mock telemetry + crash-alert modal
-- ⏳ Live dashboard polish (gauges, charts, map)
+- ⏳ Live dashboard  (gauges, charts, map)
 - ⏳ Trip history + replay
 - ⏳ Emergency contacts
 - ⏳ Settings + device pairing

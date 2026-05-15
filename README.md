@@ -143,7 +143,7 @@ GuardianDash/
 ### 2️⃣ Install & Start
 
 ```bash
-git clone https://github.com/<your-org>/GuardianDash.git
+git clone https://github.com/<MohamedEldairouty>/GuardianDash.git
 cd GuardianDash/app
 npm install
 npx expo start

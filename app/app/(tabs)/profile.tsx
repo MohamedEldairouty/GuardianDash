@@ -131,23 +131,13 @@ export default function Profile() {
 
         <Text style={styles.section}>DEVICE</Text>
         <View style={styles.card}>
-          <Row icon="🛰️" title="Black box #A4F1" sub="Connected · Firmware v0.1.0" right={<View style={styles.greenDot} />} />
-          <View style={styles.divider} />
-          <Row icon="📲" title="Pair new device" sub="Scan QR or enter ID" right={<Text style={styles.chev}>›</Text>} />
-        </View>
-
-        <Text style={styles.section}>ABOUT</Text>
-        <View style={styles.card}>
-          <Row icon="ℹ️" title="GuardianDash" sub="v0.1.0 · Embedded Systems Final Project" />
-          <View style={styles.divider} />
-          <Row icon="👥" title="Team" sub="Mohamed · Rimas · Judy · Moaz" />
+          <Row icon="🛰️" title="Black box #A4F1" sub="Connected" right={<View style={styles.greenDot} />} />
         </View>
 
         <Pressable style={styles.logout} onPress={logout}>
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
 
-        <Text style={styles.footer}>🛡️  Drive safe.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -197,5 +187,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutText: { color: colors.danger, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
-  footer: { color: colors.textDim, fontSize: 12, textAlign: 'center', marginTop: 16 },
 });

@@ -1,24 +1,28 @@
 import { router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useContactsStore } from '@/stores/contacts.store';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { confirm } from '@/services/confirm';
+import * as haptics from '@/services/haptics';
 import { colors } from '@/constants/colors';
 import type { Contact } from '@/types/user.types';
 
-function ContactRow({ contact }: { contact: Contact }) {
+function ContactRow({ contact, index }: { contact: Contact; index: number }) {
   const toggle = useContactsStore((s) => s.toggle);
   const remove = useContactsStore((s) => s.remove);
 
-  const confirmDelete = () => {
-    Alert.alert('Delete contact?', `Remove ${contact.name} from your emergency contacts.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => remove(contact.id) },
-    ]);
+  const confirmDelete = async () => {
+    const ok = await confirm('Delete contact?', `Remove ${contact.name} from your emergency contacts.`, 'Delete');
+    if (ok) {
+      haptics.warning();
+      remove(contact.id);
+    }
   };
 
   return (
-    <View style={styles.row}>
+    <Animated.View entering={FadeInDown.delay(index * 50).springify()} style={styles.row}>
       <View style={styles.priority}>
         <Text style={styles.priorityText}>{contact.priority}</Text>
       </View>
@@ -33,14 +37,17 @@ function ContactRow({ contact }: { contact: Contact }) {
       </Pressable>
       <Switch
         value={contact.enabled}
-        onValueChange={() => toggle(contact.id)}
+        onValueChange={() => {
+          haptics.tap();
+          toggle(contact.id);
+        }}
         trackColor={{ true: colors.success, false: colors.border }}
         thumbColor={colors.text}
       />
-      <Pressable onPress={confirmDelete} style={styles.delete}>
+      <Pressable onPress={confirmDelete} style={styles.delete} hitSlop={8}>
         <Text style={styles.deleteText}>✕</Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -62,7 +69,7 @@ export default function ContactsList() {
               <Text style={styles.emptySub}>Add up to 5 people we'll call in an emergency.</Text>
             </View>
           ) : (
-            contacts.map((c) => <ContactRow key={c.id} contact={c} />)
+            contacts.map((c, i) => <ContactRow key={c.id} contact={c} index={i} />)
           )}
         </View>
 

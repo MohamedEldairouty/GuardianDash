@@ -2,10 +2,12 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '@/stores/auth.store';
 import { TextField } from '@/components/ui/TextField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Logo } from '@/components/ui/Logo';
+import * as haptics from '@/services/haptics';
 import { colors } from '@/constants/colors';
 
 export default function Login() {
@@ -20,19 +22,24 @@ export default function Login() {
     setError(null);
     const res = await login({ email, password });
     setBusy(false);
-    if (res.ok) router.replace('/(tabs)');
-    else setError(res.error);
+    if (res.ok) {
+      haptics.success();
+      router.replace('/(tabs)');
+    } else {
+      haptics.warning();
+      setError(res.error);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.hero}>
+          <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.hero}>
             <Logo size={110} />
-          </View>
+          </Animated.View>
 
-          <View style={styles.card}>
+          <Animated.View entering={FadeInDown.delay(150).duration(600).springify()} style={styles.card}>
             <Text style={styles.title}>Welcome back 👋</Text>
             <Text style={styles.sub}>Sign in to keep watch over your drives.</Text>
 
@@ -70,9 +77,7 @@ export default function Login() {
                 <PrimaryButton label="Create an account" onPress={() => router.push('/(auth)/register')} variant="ghost" />
               </View>
             </Link>
-          </View>
-
-          <Text style={styles.foot}>v0.1.0 · Embedded Systems Final Project</Text>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -95,5 +100,4 @@ const styles = StyleSheet.create({
   sep: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { color: colors.textDim, marginHorizontal: 12, fontSize: 11, letterSpacing: 1 },
-  foot: { color: colors.textDim, fontSize: 11, textAlign: 'center', marginTop: 24 },
 });

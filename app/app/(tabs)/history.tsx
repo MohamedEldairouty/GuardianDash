@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { mockTrips, formatDuration, formatWhen } from '@/services/mock/trips.mock';
 import { useCrashStore } from '@/stores/crash.store';
 import { colors } from '@/constants/colors';
 import type { Trip } from '@/types/trip.types';
 import type { CrashEvent } from '@/types/crash.types';
 
-function TripRow({ trip }: { trip: Trip }) {
+function TripRow({ trip, index }: { trip: Trip; index: number }) {
   const duration = formatDuration(trip.endedAt - trip.startedAt);
   return (
+    <Animated.View entering={FadeInDown.delay(index * 40).duration(400)}>
     <Pressable
       onPress={() => router.push(`/trip/${trip.id}`)}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
@@ -33,6 +35,7 @@ function TripRow({ trip }: { trip: Trip }) {
         <Text style={styles.chev}>›</Text>
       )}
     </Pressable>
+    </Animated.View>
   );
 }
 
@@ -99,8 +102,8 @@ export default function History() {
 
         <Text style={styles.section}>TRIPS</Text>
         <View style={{ gap: 10 }}>
-          {mockTrips.map((t) => (
-            <TripRow key={t.id} trip={t} />
+          {mockTrips.map((t, i) => (
+            <TripRow key={t.id} trip={t} index={i} />
           ))}
         </View>
       </ScrollView>

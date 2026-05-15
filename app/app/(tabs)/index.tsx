@@ -7,11 +7,12 @@ import { useCrashStore } from '@/stores/crash.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { LogoMark } from '@/components/ui/Logo';
 import { buildMockCrash } from '@/services/mock/crash.mock';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SpeedGauge } from '@/components/dashboard/SpeedGauge';
 import { GForceBar } from '@/components/dashboard/GForceBar';
-import { MiniMapTrail } from '@/components/dashboard/MiniMapTrail';
 import { StatusPill } from '@/components/dashboard/StatusPill';
 import { StatCard } from '@/components/ui/StatCard';
+import * as haptics from '@/services/haptics';
 import { colors } from '@/constants/colors';
 
 export default function Dashboard() {
@@ -26,9 +27,15 @@ export default function Dashboard() {
   const firstName = user?.name.split(' ')[0] ?? 'driver';
 
   const simulateCrash = () => {
+    haptics.crash();
     const loc = frame?.location ?? { lat: 30.0444, lng: 31.2357 };
     trigger(buildMockCrash(loc), recent);
     router.push('/alert');
+  };
+
+  const onResetPeak = () => {
+    haptics.tap();
+    resetPeak();
   };
 
   return (
@@ -48,13 +55,15 @@ export default function Dashboard() {
           <StatusPill status={status} />
         </View>
 
-        <View style={styles.gaugeWrap}>
+        <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.gaugeWrap}>
           <SpeedGauge speedKph={frame?.speedKph ?? 0} />
-        </View>
+        </Animated.View>
 
-        <GForceBar gForce={frame?.gForce ?? 0} peak={peakG} />
+        <Animated.View entering={FadeInDown.delay(80).duration(500).springify()}>
+          <GForceBar gForce={frame?.gForce ?? 0} peak={peakG} />
+        </Animated.View>
 
-        <View style={styles.row}>
+        <Animated.View entering={FadeInDown.delay(140).duration(500).springify()} style={styles.row}>
           <StatCard
             label="HEADING"
             value={frame ? `${Math.round(frame.heading)}` : '--'}
@@ -73,21 +82,21 @@ export default function Dashboard() {
             unit="°/s"
             style={{ marginLeft: 6 }}
           />
-        </View>
+        </Animated.View>
 
-        <MiniMapTrail frames={recent} />
-
-        <Pressable style={styles.resetBtn} onPress={resetPeak}>
+        <Pressable style={styles.resetBtn} onPress={onResetPeak}>
           <Text style={styles.resetText}>↺  Reset peak G</Text>
         </Pressable>
 
-        <Pressable style={styles.crashBtn} onPress={simulateCrash}>
-          <Text style={styles.crashEmoji}>💥</Text>
-          <View>
-            <Text style={styles.crashText}>SIMULATE CRASH</Text>
-            <Text style={styles.crashSub}>Dev only — triggers full alert flow</Text>
-          </View>
-        </Pressable>
+        <Animated.View entering={FadeInDown.delay(200).duration(500).springify()}>
+          <Pressable style={styles.crashBtn} onPress={simulateCrash}>
+            <Text style={styles.crashEmoji}>💥</Text>
+            <View>
+              <Text style={styles.crashText}>SIMULATE CRASH</Text>
+              <Text style={styles.crashSub}>Dev only — triggers full alert flow</Text>
+            </View>
+          </Pressable>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

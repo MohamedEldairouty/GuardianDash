@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { TextField } from '@/components/ui/TextField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { LogoMark } from '@/components/ui/Logo';
+import * as haptics from '@/services/haptics';
 import { colors } from '@/constants/colors';
 
 export default function Register() {
@@ -21,8 +22,13 @@ export default function Register() {
     setError(null);
     const res = await register({ name, email, password });
     setBusy(false);
-    if (res.ok) router.replace('/(tabs)');
-    else setError(res.error);
+    if (res.ok) {
+      haptics.success();
+      router.replace('/(tabs)');
+    } else {
+      haptics.warning();
+      setError(res.error);
+    }
   };
 
   return (
@@ -42,7 +48,7 @@ export default function Register() {
           <Text style={styles.sub}>Stay protected on every drive.</Text>
 
           <View style={styles.card}>
-            <TextField label="NAME" icon="👤" value={name} onChangeText={setName} placeholder="Mohamed Eldairouty" />
+            <TextField label="NAME" icon="👤" value={name} onChangeText={setName} placeholder="Your name" />
             <TextField
               label="EMAIL"
               icon="📧"

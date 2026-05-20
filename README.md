@@ -114,7 +114,10 @@ GuardianDash/
 │   ├── constants/         #    Thresholds, colors, design tokens
 │   └── types/             #    Shared TypeScript types
 │
-├── backend/               # ☁️  Node.js + TypeScript API + WebSocket server
+├── bridge/                # 🔌 UART → WebSocket bridge (Node.js)
+│                          #    Streams live STM32 telemetry to the app
+│
+├── backend/               # ☁️  (Future) Cloud API + push notifications
 │
 ├── hardware/              # 🔌 STM32 firmware + schematics
 │   ├── stm32/             #    Embedded C / HAL code

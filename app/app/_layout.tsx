@@ -6,7 +6,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '@/stores/auth.store';
 import { useContactsStore } from '@/stores/contacts.store';
+import { useDeviceGPS } from '@/hooks/useDeviceGPS';
+import { connectBridge, loadBridgeUrl } from '@/services/liveBridge';
 import { colors } from '@/constants/colors';
+
+function GlobalEffects() {
+  useDeviceGPS();
+  useEffect(() => {
+    loadBridgeUrl().then((url) => { if (url) connectBridge(url); });
+  }, []);
+  return null;
+}
 
 function AuthGate() {
   const router = useRouter();
@@ -57,6 +67,7 @@ export default function RootLayout() {
           <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="crash/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="settings/sensitivity" options={{ title: 'Crash Sensitivity', headerShown: true }} />
+          <Stack.Screen name="device/connect" options={{ title: 'Black Box', headerShown: true }} />
           <Stack.Screen name="contacts/index" options={{ title: 'Emergency Contacts', headerShown: true }} />
           <Stack.Screen name="contacts/edit" options={{ presentation: 'modal', title: 'Contact', headerShown: true }} />
           <Stack.Screen
@@ -65,6 +76,7 @@ export default function RootLayout() {
           />
         </Stack>
         <AuthGate />
+        <GlobalEffects />
         <HydrationOverlay />
       </SafeAreaProvider>
     </GestureHandlerRootView>

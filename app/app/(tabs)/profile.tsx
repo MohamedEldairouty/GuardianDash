@@ -131,7 +131,13 @@ export default function Profile() {
 
         <Text style={styles.section}>BLACK BOX</Text>
         <View style={styles.card}>
-          <Row icon="🛰️" title="Vehicle_BlackBox" sub="STM32F401 · Connected" right={<View style={styles.greenDot} />} />
+          <Row
+            icon="🛰️"
+            title="Connect to Black Box"
+            sub="Pair via USB-serial bridge"
+            right={<Text style={styles.chev}>›</Text>}
+            onPress={() => router.push('/device/connect')}
+          />
           <View style={styles.divider} />
           <Row icon="📟" title="Display" sub="16×2 I²C LCD · Live mirror on dashboard" />
           <View style={styles.divider} />

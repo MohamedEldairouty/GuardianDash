@@ -1,0 +1,15 @@
+{
+  "name": "guardiandash-bridge",
+  "version": "0.1.0",
+  "description": "USB-serial → WebSocket bridge for the GuardianDash STM32 black box",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js",
+    "list": "node -e \"require('serialport').SerialPort.list().then(ps => ps.forEach(p => console.log(p.path, '·', p.manufacturer || '?')))\""
+  },
+  "dependencies": {
+    "serialport": "^12.0.0",
+    "@serialport/parser-readline": "^12.0.0",
+    "socket.io": "^4.7.5"
+  }
+}

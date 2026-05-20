@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as haptics from '@/services/haptics';
 import { mockTrips, formatDuration, formatWhen } from '@/services/mock/trips.mock';
 import { useCrashStore } from '@/stores/crash.store';
 import { colors } from '@/constants/colors';
@@ -65,10 +67,29 @@ export default function History() {
   const crashHistory = useCrashStore((s) => s.history);
   const totalKm = mockTrips.reduce((a, t) => a + t.distanceKm, 0);
   const totalCrashes = mockTrips.reduce((a, t) => a + t.crashCount, 0) + crashHistory.length;
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    haptics.tap();
+    setRefreshing(true);
+    await new Promise((r) => setTimeout(r, 700));
+    setRefreshing(false);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primaryGlow}
+            colors={[colors.primary]}
+            progressBackgroundColor={colors.bgElevated}
+          />
+        }
+      >
         <Text style={styles.title}>🗺️ Trip History</Text>
         <Text style={styles.sub}>{mockTrips.length} trips · all-time</Text>
 

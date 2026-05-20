@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Swipeable } from 'react-native-gesture-handler';
+import { useRef } from 'react';
 import { useContactsStore } from '@/stores/contacts.store';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { confirm } from '@/services/confirm';
@@ -12,8 +14,10 @@ import type { Contact } from '@/types/user.types';
 function ContactRow({ contact, index }: { contact: Contact; index: number }) {
   const toggle = useContactsStore((s) => s.toggle);
   const remove = useContactsStore((s) => s.remove);
+  const swipeRef = useRef<Swipeable>(null);
 
   const confirmDelete = async () => {
+    swipeRef.current?.close();
     const ok = await confirm('Delete contact?', `Remove ${contact.name} from your emergency contacts.`, 'Delete');
     if (ok) {
       haptics.warning();
@@ -21,32 +25,48 @@ function ContactRow({ contact, index }: { contact: Contact; index: number }) {
     }
   };
 
+  const renderRightActions = () => (
+    <Pressable onPress={confirmDelete} style={styles.swipeAction}>
+      <Text style={styles.swipeIcon}>🗑</Text>
+      <Text style={styles.swipeText}>Delete</Text>
+    </Pressable>
+  );
+
   return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()} style={styles.row}>
-      <View style={styles.priority}>
-        <Text style={styles.priorityText}>{contact.priority}</Text>
-      </View>
-      <Pressable
-        style={styles.body}
-        onPress={() => router.push({ pathname: '/contacts/edit', params: { id: contact.id } })}
+    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+      <Swipeable
+        ref={swipeRef}
+        renderRightActions={renderRightActions}
+        rightThreshold={50}
+        overshootRight={false}
       >
-        <Text style={styles.name}>{contact.name}</Text>
-        <Text style={styles.meta}>
-          {contact.relationship} · {contact.phone}
-        </Text>
-      </Pressable>
-      <Switch
-        value={contact.enabled}
-        onValueChange={() => {
-          haptics.tap();
-          toggle(contact.id);
-        }}
-        trackColor={{ true: colors.success, false: colors.border }}
-        thumbColor={colors.text}
-      />
-      <Pressable onPress={confirmDelete} style={styles.delete} hitSlop={8}>
-        <Text style={styles.deleteText}>✕</Text>
-      </Pressable>
+        <View style={styles.row}>
+          <View style={styles.priority}>
+            <Text style={styles.priorityText}>{contact.priority}</Text>
+          </View>
+          <Pressable
+            style={styles.body}
+            onPress={() => router.push({ pathname: '/contacts/edit', params: { id: contact.id } })}
+          >
+            <Text style={styles.name}>{contact.name}</Text>
+            <Text style={styles.meta}>
+              {contact.relationship} · {contact.phone}
+            </Text>
+          </Pressable>
+          <Switch
+            value={contact.enabled}
+            onValueChange={() => {
+              haptics.tap();
+              toggle(contact.id);
+            }}
+            trackColor={{ true: colors.success, false: colors.border }}
+            thumbColor={colors.text}
+          />
+          <Pressable onPress={confirmDelete} style={styles.delete} hitSlop={8}>
+            <Text style={styles.deleteText}>✕</Text>
+          </Pressable>
+        </View>
+      </Swipeable>
     </Animated.View>
   );
 }
@@ -58,7 +78,8 @@ export default function ContactsList() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.hint}>
-          ☎️ When a crash is detected, GuardianDash auto-calls contacts in priority order if you don't cancel within 30 seconds.
+          ☎️  When a crash is detected, GuardianDash auto-calls contacts in priority order if you don't cancel within 30 seconds.{'\n\n'}
+          💡  Tip: swipe a contact to the left to delete it.
         </Text>
 
         <View style={{ gap: 10 }}>
@@ -125,4 +146,14 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 42 },
   emptyText: { color: colors.text, fontSize: 16, fontWeight: '600', marginTop: 8 },
   emptySub: { color: colors.textMuted, fontSize: 13, marginTop: 4, textAlign: 'center' },
+  swipeAction: {
+    backgroundColor: colors.danger,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  swipeIcon: { fontSize: 22 },
+  swipeText: { color: colors.text, fontWeight: '700', fontSize: 12, marginTop: 2 },
 });

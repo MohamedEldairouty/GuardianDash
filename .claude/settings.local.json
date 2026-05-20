@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp assets/logo/logo.png app/assets/icon.png)",
+      "Bash(cp assets/logo/logo.png app/assets/adaptive-icon.png)",
+      "Bash(cp assets/logo/logo.png app/assets/splash.png)",
+      "Bash(npx --yes svgexport assets/logo/logo.svg app/assets/favicon.png 64:64)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

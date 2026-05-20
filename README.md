@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/logo.svg" alt="GuardianDash Logo" width="240"/>
+  <img src="assets/logo/logo.png" alt="GuardianDash Logo" width="240"/>
 </p>
 
 <h1 align="center">🛡️ GuardianDash — Your Vehicle's Black Box & Guardian Angel</h1>
@@ -47,10 +47,12 @@ Drive with peace of mind. **GuardianDash has your back.** 💪
 - 📞 **Auto-calls emergency contact #1** via Twilio if not cancelled
 - 📍 Sends GPS coordinates to emergency services
 
-### 🔌 Hardware Black Box *(coming soon)*
-- STM32-based logger with IMU + GPS + GSM module
-- Stores trips locally on SD card as backup
-- Cellular fallback when the phone is offline
+### 🔌 Hardware Black Box
+- **STM32F401** microcontroller running custom firmware
+- **MPU6050** IMU over I²C — reads accel X/Y/Z at ±2g range
+- **16×2 I²C LCD** showing live `G:1.23` + `STATUS: SAFE / UNSAFE`
+- Crash threshold: **G > 1.50g** (configurable in the mobile app)
+- The mobile app's dashboard includes a **live LCD mirror** of the on-board display
 
 ---
 
@@ -77,29 +79,24 @@ Drive with peace of mind. **GuardianDash has your back.** 💪
 ## 🏗 System Architecture
 
 ```
-       ┌─────────────────────────┐
-       │   🚗 Vehicle Black Box  │
-       │  STM32 + IMU + GPS+GSM  │
-       └────────────┬────────────┘
-                    │ telemetry frames (WebSocket / GSM)
-                    ▼
-       ┌─────────────────────────┐         ┌──────────────────────┐
-       │  ☁️  Node.js Backend    │  ────►  │  📞 Twilio (SMS+Call)│
-       │  • Telemetry ingest     │         └──────────────────────┘
-       │  • Crash validator      │
-       │  • Trip segmenter       │         ┌──────────────────────┐
-       │  • Push dispatcher      │  ────►  │  🔔 FCM / APNs Push  │
-       └────────────┬────────────┘         └──────────────────────┘
-                    │ live socket + REST
-                    ▼
-       ┌─────────────────────────┐
-       │  📱 GuardianDash App    │
-       │  React Native + Expo    │
-       │  • Live dashboard       │
-       │  • Crash alert screen   │
-       │  • Trip history+replay  │
-       │  • Emergency contacts   │
-       └─────────────────────────┘
+       ┌──────────────────────────┐
+       │   🚗 Vehicle_BlackBox    │
+       │   STM32F401 firmware     │
+       │   • MPU6050 @ I²C 0x68   │
+       │   • G = √(Ax² + Ay² + Az²)│
+       │   • 16×2 LCD readout      │
+       └───────────┬──────────────┘
+                   │ telemetry stream (UART → bridge → WebSocket)
+                   ▼
+       ┌──────────────────────────┐
+       │  📱 GuardianDash App     │
+       │  React Native + Expo     │
+       │  • Live LCD mirror       │
+       │  • G-force bar + chart   │
+       │  • Crash alert + eCall   │
+       │  • Trip history & map    │
+       │  • Emergency contacts    │
+       └──────────────────────────┘
 ```
 
 ---
@@ -171,7 +168,8 @@ Hit the **"Simulate Crash"** button (dev mode) on the dashboard to fire the full
 | **Database** | TimescaleDB (time-series telemetry) |
 | **Notifications** | Expo Notifications (FCM + APNs) |
 | **Emergency Call** | Twilio (SMS + Voice) |
-| **Hardware** | STM32, IMU (MPU6050), NEO-6M GPS, SIM800L GSM |
+| **Hardware** | STM32F401, MPU6050 IMU, 16×2 I²C LCD |
+| **Firmware** | C + STM32 HAL · I²C1 @ 100 kHz |
 
 ---
 

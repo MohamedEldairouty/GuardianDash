@@ -57,14 +57,17 @@ desktop.ini
 *.tsbuildinfo
 coverage/
 
-# Hardware build artifacts
-hardware/stm32/build/
-hardware/stm32/Debug/
-hardware/stm32/Release/
+# Hardware / STM32CubeIDE build artifacts
+hardware/**/Debug/
+hardware/**/Release/
+hardware/**/build/
 *.elf
 *.bin
 *.hex
 *.map
+*.cyclo
+*.su
+*.list
 
 # Docs build
 docs/build/

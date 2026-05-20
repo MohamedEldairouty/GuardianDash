@@ -1,17 +1,18 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useLiveTelemetry } from '@/hooks/useLiveTelemetry';
 import { useTelemetryStore } from '@/stores/telemetry.store';
 import { useCrashStore } from '@/stores/crash.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { LogoMark } from '@/components/ui/Logo';
 import { buildMockCrash } from '@/services/mock/crash.mock';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SpeedGauge } from '@/components/dashboard/SpeedGauge';
 import { GForceBar } from '@/components/dashboard/GForceBar';
 import { StatusPill } from '@/components/dashboard/StatusPill';
+import { LcdMirror } from '@/components/dashboard/LcdMirror';
 import { StatCard } from '@/components/ui/StatCard';
+import { LogoMark } from '@/components/ui/Logo';
 import * as haptics from '@/services/haptics';
 import { colors } from '@/constants/colors';
 
@@ -43,7 +44,7 @@ export default function Dashboard() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <LogoMark size={40} />
+            <LogoMark size={42} />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.brand}>
                 <Text style={{ color: colors.text }}>Guardian</Text>
@@ -55,40 +56,32 @@ export default function Dashboard() {
           <StatusPill status={status} />
         </View>
 
-        <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.gaugeWrap}>
-          <SpeedGauge speedKph={frame?.speedKph ?? 0} />
+        {/* G-force is the hardware's only real signal — make it the hero */}
+        <Animated.View entering={FadeInDown.duration(500).springify()}>
+          <LcdMirror gForce={frame?.gForce ?? 0} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(80).duration(500).springify()}>
           <GForceBar gForce={frame?.gForce ?? 0} peak={peakG} />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(140).duration(500).springify()} style={styles.row}>
-          <StatCard
-            label="HEADING"
-            value={frame ? `${Math.round(frame.heading)}` : '--'}
-            unit="°"
-            style={{ marginRight: 6 }}
-          />
-          <StatCard
-            label="ACCEL Z"
-            value={frame ? frame.accel.z.toFixed(1) : '--'}
-            unit="m/s²"
-            style={{ marginHorizontal: 6 }}
-          />
-          <StatCard
-            label="GYRO Z"
-            value={frame ? frame.gyro.z.toFixed(0) : '--'}
-            unit="°/s"
-            style={{ marginLeft: 6 }}
-          />
+        {/* Speed gauge — demo only, real hardware doesn't have GPS yet */}
+        <Animated.View entering={FadeInDown.delay(140).duration(500).springify()} style={styles.gaugeWrap}>
+          <SpeedGauge speedKph={frame?.speedKph ?? 0} />
+          <Text style={styles.demoTag}>· demo telemetry · GPS planned ·</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(200).duration(500).springify()} style={styles.row}>
+          <StatCard label="ACCEL X" value={frame ? frame.accel.x.toFixed(2) : '--'} unit="g" style={{ marginRight: 6 }} />
+          <StatCard label="ACCEL Y" value={frame ? frame.accel.y.toFixed(2) : '--'} unit="g" style={{ marginHorizontal: 6 }} />
+          <StatCard label="ACCEL Z" value={frame ? frame.accel.z.toFixed(2) : '--'} unit="g" style={{ marginLeft: 6 }} />
         </Animated.View>
 
         <Pressable style={styles.resetBtn} onPress={onResetPeak}>
           <Text style={styles.resetText}>↺  Reset peak G</Text>
         </Pressable>
 
-        <Animated.View entering={FadeInDown.delay(200).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay(260).duration(500).springify()}>
           <Pressable style={styles.crashBtn} onPress={simulateCrash}>
             <Text style={styles.crashEmoji}>💥</Text>
             <View>
@@ -110,6 +103,7 @@ const styles = StyleSheet.create({
   brand: { fontSize: 20, fontWeight: '800', letterSpacing: 0.3 },
   greeting: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   gaugeWrap: { alignItems: 'center', paddingVertical: 4 },
+  demoTag: { color: colors.textDim, fontSize: 10, letterSpacing: 1.5, marginTop: -4 },
   row: { flexDirection: 'row' },
   resetBtn: {
     alignSelf: 'center',

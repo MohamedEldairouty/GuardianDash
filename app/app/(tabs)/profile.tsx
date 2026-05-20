@@ -129,9 +129,13 @@ export default function Profile() {
           />
         </View>
 
-        <Text style={styles.section}>DEVICE</Text>
+        <Text style={styles.section}>BLACK BOX</Text>
         <View style={styles.card}>
-          <Row icon="🛰️" title="Black box #A4F1" sub="Connected" right={<View style={styles.greenDot} />} />
+          <Row icon="🛰️" title="Vehicle_BlackBox" sub="STM32F401 · Connected" right={<View style={styles.greenDot} />} />
+          <View style={styles.divider} />
+          <Row icon="📟" title="Display" sub="16×2 I²C LCD · Live mirror on dashboard" />
+          <View style={styles.divider} />
+          <Row icon="🧭" title="Sensor" sub="MPU6050 · ±2g accel @ 0x68" />
         </View>
 
         <Pressable style={styles.logout} onPress={logout}>

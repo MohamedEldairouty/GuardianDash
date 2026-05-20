@@ -9,10 +9,11 @@ interface Settings {
   sensitivity: Sensitivity;
 }
 
+// Thresholds aligned with the STM32 firmware. Default UNSAFE trip is 1.5g.
 const THRESHOLDS: Record<Sensitivity, number> = {
-  low: 5.0,
-  medium: 3.5,
-  high: 2.5,
+  low: 2.0,
+  medium: 1.5,
+  high: 1.2,
 };
 
 interface SettingsState extends Settings {

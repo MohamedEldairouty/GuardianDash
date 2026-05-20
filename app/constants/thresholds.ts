@@ -1,8 +1,11 @@
+// Match the on-device firmware in hardware/Vehicle_BlackBox/Core/Src/main.c
+// where `STATUS: UNSAFE` is set when `Gforce > 1.50f`.
+
 export const G_FORCE = {
-  safe: 1.5,
-  caution: 2.5,
-  warning: 3.5,
-  critical: 5.0,
+  safe: 1.20,
+  caution: 1.40,
+  warning: 1.50, // hardware threshold for UNSAFE
+  critical: 2.00,
 } as const;
 
 export const SPEED = {
@@ -13,5 +16,5 @@ export const SPEED = {
 
 export const CRASH = {
   autoCallCountdownSec: 30,
-  defaultSensitivityG: 3.5,
+  defaultSensitivityG: 1.5,
 } as const;

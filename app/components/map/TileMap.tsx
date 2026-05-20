@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Image, StyleSheet, Text as RnText, View, type ViewStyle } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '@/constants/colors';
 
@@ -82,22 +82,28 @@ export function TileMap({
 
   return (
     <View style={[{ width, height, borderRadius: rounded, overflow: 'hidden', backgroundColor: colors.surface }, style]}>
-      {layout.tiles.map((t) => (
-        <Image
-          key={`${t.x}-${t.y}`}
-          source={{ uri: `https://tile.openstreetmap.org/${zoom}/${t.x}/${t.y}.png` }}
-          style={{
-            position: 'absolute',
-            left: t.left,
-            top: t.top,
-            width: TILE_SIZE,
-            height: TILE_SIZE,
-          }}
-        />
-      ))}
+      {layout.tiles.map((t) => {
+        // Sub-domain rotation for parallel downloads (a/b/c/d).
+        const sub = 'abcd'[(t.x + t.y) % 4];
+        return (
+          <Image
+            key={`${t.x}-${t.y}`}
+            source={{
+              uri: `https://${sub}.basemaps.cartocdn.com/dark_all/${zoom}/${t.x}/${t.y}@2x.png`,
+            }}
+            style={{
+              position: 'absolute',
+              left: t.left,
+              top: t.top,
+              width: TILE_SIZE,
+              height: TILE_SIZE,
+            }}
+          />
+        );
+      })}
 
-      {/* Dark overlay to match theme */}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0B0F1A', opacity: 0.35 }]} />
+      {/* Subtle dark wash to bind the map to the app theme */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0B0F1A', opacity: 0.12 }]} />
 
       <Svg width={width} height={height} style={StyleSheet.absoluteFillObject}>
         {pathD ? (
@@ -119,7 +125,24 @@ export function TileMap({
           );
         })}
       </Svg>
+
+      <View pointerEvents="none" style={styles.attribution}>
+        <RnText style={styles.attributionText}>© OpenStreetMap · © CARTO</RnText>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  attribution: {
+    position: 'absolute',
+    bottom: 4,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 4,
+  },
+  attributionText: { color: '#ffffff', fontSize: 8, opacity: 0.7 },
+});
 

@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+const MONO = Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' });
 import { useTelemetryStore } from '@/stores/telemetry.store';
 import { connectBridge, disconnectBridge, loadBridgeUrl, saveBridgeUrl } from '@/services/liveBridge';
 import { TextField } from '@/components/ui/TextField';
@@ -118,7 +120,7 @@ const styles = StyleSheet.create({
   code: {
     color: '#7CFFB2',
     fontSize: 12,
-    fontFamily: 'Courier',
+    fontFamily: MONO,
     backgroundColor: colors.surface,
     padding: 8,
     borderRadius: 6,

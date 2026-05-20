@@ -19,6 +19,7 @@ function colorFor(g: number) {
 
 export function GForceBar({ gForce, peak }: { gForce: number; peak: number }) {
   const width = useSharedValue(0);
+  const color = colorFor(gForce); // computed on JS thread — safe to pass into the worklet
 
   useEffect(() => {
     width.value = withTiming(Math.min(1, gForce / MAX_G), { duration: 200, easing: Easing.out(Easing.quad) });
@@ -26,7 +27,6 @@ export function GForceBar({ gForce, peak }: { gForce: number; peak: number }) {
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${width.value * 100}%`,
-    backgroundColor: colorFor(gForce),
   }));
 
   const peakLeft = `${Math.min(100, (peak / MAX_G) * 100)}%`;
@@ -35,13 +35,13 @@ export function GForceBar({ gForce, peak }: { gForce: number; peak: number }) {
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.label}>G-FORCE</Text>
-        <Text style={[styles.value, { color: colorFor(gForce) }]}>
+        <Text style={[styles.value, { color }]}>
           {gForce.toFixed(2)} g
         </Text>
       </View>
 
       <View style={styles.track}>
-        <Animated.View style={[styles.fill, fillStyle]} />
+        <Animated.View style={[styles.fill, fillStyle, { backgroundColor: color }]} />
         <View style={[styles.zoneMark, { left: `${(G_FORCE.caution / MAX_G) * 100}%` }]} />
         <View style={[styles.zoneMark, { left: `${(G_FORCE.warning / MAX_G) * 100}%` }]} />
         {peak > 0.05 && <View style={[styles.peakMark, { left: peakLeft as any }]} />}

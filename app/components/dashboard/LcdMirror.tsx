@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+
+const MONO = Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' });
 import { useSettingsStore } from '@/stores/settings.store';
 import { colors } from '@/constants/colors';
 
@@ -54,7 +56,7 @@ const styles = StyleSheet.create({
     color: '#7CFFB2',
     fontSize: 18,
     letterSpacing: 1.5,
-    fontFamily: 'Courier',
+    fontFamily: MONO,
     fontWeight: '600',
     lineHeight: 24,
   },

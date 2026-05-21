@@ -58,6 +58,9 @@ CLAUDE.md
 Thumbs.db
 desktop.ini
 
+# MS Office lock files
+~$*
+
 # Misc
 *.tsbuildinfo
 coverage/

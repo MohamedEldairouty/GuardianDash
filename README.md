@@ -13,7 +13,7 @@
 <p align="center">
   📥 <a href="https://expo.dev/accounts/dairo8/projects/guardiandash/builds/d28c9c50-79b6-4520-8274-de7a3aaa72da"><strong>Install the latest APK</strong></a>
   &nbsp;·&nbsp;
-  📑 <a href="docs/GuardianDash_Report.docx"><strong>Project Report</strong></a>
+  📑 <a href="docs/GuardianDash_Report.pdf"><strong>Project Report</strong></a>
 </p>
 
 ---

@@ -27,11 +27,11 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_SPI1_Init();
-  Usart2_Init();                      /* USART2 for the GuardianDash USB-serial bridge */
+  BtUart_Init();                      /* USART1 → HM-10 BLE module */
 
   HAL_Delay(500);
 
-  Usart2_WriteString("\r\n[GuardianDash] Vehicle_BlackBox boot\r\n");
+  BtUart_WriteString("\r\n[GuardianDash] Vehicle_BlackBox boot\r\n");
 
   lcd_init();
   HAL_Delay(100);
@@ -101,9 +101,11 @@ int main(void)
     lcd_put_cur(1, 0);
     lcd_send_string(line2);
 
-    /* ---------------------- UART output for the bridge ---------------------
-     * Format expected by bridge/bridge.js parser:
-     *     G:1.23,X:0.05,Y:-0.01,Z:1.00\r\n
+    /* ---------------------- UART output for the BLE link -------------------
+     * Format consumed by the GuardianDash app:
+     *     G:1.23,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE\r\n
+     * STATUS = SAFE when Gforce <= 1.50f, otherwise ACCIDENT.
+     *
      * We avoid %f (which would require linking float printf) by emitting
      * each value as <integer>.<two-digit-fraction>, with a leading '-' when
      * needed.
@@ -127,13 +129,16 @@ int main(void)
     if (az_f < 0) az_f = -az_f;
     const char *az_sign = (MPU6050.Az < 0 && az_w == 0) ? "-" : "";
 
+    const char *status = (MPU6050.Gforce > 1.50f) ? "ACCIDENT" : "SAFE";
+
     snprintf(uart_buf, sizeof(uart_buf),
-             "G:%d.%02d,X:%s%d.%02d,Y:%s%d.%02d,Z:%s%d.%02d\r\n",
+             "G:%d.%02d,X:%s%d.%02d,Y:%s%d.%02d,Z:%s%d.%02d,STATUS:%s\r\n",
              g_w, g_f,
              ax_sign, ax_w, ax_f,
              ay_sign, ay_w, ay_f,
-             az_sign, az_w, az_f);
-    Usart2_WriteString(uart_buf);
+             az_sign, az_w, az_f,
+             status);
+    BtUart_WriteString(uart_buf);
 
     HAL_Delay(500);
   }

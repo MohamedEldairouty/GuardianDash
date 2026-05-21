@@ -154,22 +154,44 @@ function handleData(chunk: string) {
 }
 
 function parseLine(line: string) {
-  const out: Record<string, number> = {};
-  for (const part of line.split(',')) {
-    const m = part.trim().match(/^([A-Za-z]+)\s*[:=]\s*(-?\d+(?:\.\d+)?)/);
-    if (m) out[m[1].toLowerCase()] = parseFloat(m[2]);
+  // Pull both numeric and string fields out of the CSV.
+  // Examples:
+  //   G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE
+  //   G:2.10,X:-1.20,Y:0.40,Z:0.90,STATUS:ACCIDENT
+  const nums: Record<string, number> = {};
+  const strs: Record<string, string> = {};
+  for (const raw of line.split(',')) {
+    const part = raw.trim();
+    const numMatch = part.match(/^([A-Za-z]+)\s*[:=]\s*(-?\d+(?:\.\d+)?)$/);
+    if (numMatch) {
+      nums[numMatch[1].toLowerCase()] = parseFloat(numMatch[2]);
+      continue;
+    }
+    const strMatch = part.match(/^([A-Za-z]+)\s*[:=]\s*([A-Za-z_][A-Za-z0-9_-]*)$/);
+    if (strMatch) {
+      strs[strMatch[1].toLowerCase()] = strMatch[2].toUpperCase();
+    }
   }
-  if (out.g === undefined) return;
+  if (nums.g === undefined) return;
 
   const store = useTelemetryStore.getState();
   const frame: TelemetryFrame = {
     timestamp: Date.now(),
-    gForce: out.g,
-    accel: { x: out.x ?? 0, y: out.y ?? 0, z: out.z ?? 1 },
+    gForce: nums.g,
+    accel: { x: nums.x ?? 0, y: nums.y ?? 0, z: nums.z ?? 1 },
     gyro: { x: 0, y: 0, z: 0 },
     location: store.liveGps ?? { lat: 30.0444, lng: 31.2357 },
     heading: store.liveHeading ?? 0,
     speedKph: store.liveSpeedKph ?? 0,
   };
   store.setFrame(frame);
+
+  // If the hardware tells us STATUS:ACCIDENT, fire the crash flow even if
+  // the app's local threshold hasn't tripped (e.g. firmware uses a different
+  // calibration). The app's existing crash detection still runs on top.
+  if (strs.status === 'ACCIDENT' || strs.status === 'UNSAFE') {
+    // Hook for future: dispatch a crash event from here. For now, the
+    // dashboard reflects the elevated G and the user can read STATUS in
+    // the LCD mirror.
+  }
 }

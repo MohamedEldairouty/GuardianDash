@@ -1,7 +1,8 @@
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { setBase } from '@/services/api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '@/stores/auth.store';
 import { TextField } from '@/components/ui/TextField';
@@ -77,6 +78,13 @@ export default function Login() {
                 <PrimaryButton label="Create an account" onPress={() => router.push('/(auth)/register')} variant="ghost" />
               </View>
             </Link>
+
+            <Pressable
+              onPress={async () => { await setBase(null); router.replace('/(setup)/backend'); }}
+              style={{ marginTop: 16, alignSelf: 'center' }}
+            >
+              <Text style={styles.changeBackend}>⚙️  Can't reach backend? Change URL</Text>
+            </Pressable>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -100,4 +108,5 @@ const styles = StyleSheet.create({
   sep: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { color: colors.textDim, marginHorizontal: 12, fontSize: 11, letterSpacing: 1 },
+  changeBackend: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
 });

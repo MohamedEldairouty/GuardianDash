@@ -9,7 +9,7 @@ import { useContactsStore } from '@/stores/contacts.store';
 import { useTripsStore } from '@/stores/trips.store';
 import { useDeviceGPS } from '@/hooks/useDeviceGPS';
 import { connectBridge, loadBridgeUrl } from '@/services/liveBridge';
-import { getBase } from '@/services/api';
+import { api, getBase, setBase } from '@/services/api';
 import { colors } from '@/constants/colors';
 
 function GlobalEffects() {
@@ -36,9 +36,21 @@ function AuthGate() {
   useEffect(() => {
     (async () => {
       const base = await getBase();
-      setHasBackend(!!base);
-      if (base) hydrate();
-      else useAuthStore.setState({ hydrated: true, user: null });
+      if (!base) {
+        setHasBackend(false);
+        useAuthStore.setState({ hydrated: true, user: null });
+        return;
+      }
+      // Verify it actually answers. If not, bounce back to setup so user
+      // isn't trapped at the login screen.
+      const reachable = await api.health(base);
+      if (!reachable) {
+        setHasBackend(false);
+        useAuthStore.setState({ hydrated: true, user: null });
+        return;
+      }
+      setHasBackend(true);
+      hydrate();
     })();
   }, [hydrate]);
 

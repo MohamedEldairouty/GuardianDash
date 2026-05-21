@@ -17,12 +17,21 @@ export default function MapTab() {
   const frame = useTelemetryStore((s) => s.latest);
   const recent = useTelemetryStore((s) => s.recent);
   const status = useTelemetryStore((s) => s.status);
+  const liveGps = useTelemetryStore((s) => s.liveGps);          // phone GPS, independent of black box
+  const liveSpeedKph = useTelemetryStore((s) => s.liveSpeedKph);
+  const liveHeading = useTelemetryStore((s) => s.liveHeading);
   const { width: winW, height: winH } = useWindowDimensions();
   const [zoomIdx, setZoomIdx] = useState(2);
   const [follow, setFollow] = useState(true);
 
+  // Prefer telemetry-frame location (so the trail follows the black box if
+  // someone wires GPS into the firmware later), but ALWAYS fall back to the
+  // phone GPS — that's what the user expects to see.
+  const currentLoc = frame?.location ?? liveGps;
   const mapH = winH - 64; // minus tab bar
-  const center = follow && frame ? frame.location : recent[Math.floor(recent.length / 2)]?.location ?? { lat: 30.0444, lng: 31.2357 };
+  const center = follow && currentLoc
+    ? currentLoc
+    : recent[Math.floor(recent.length / 2)]?.location ?? currentLoc ?? { lat: 30.0444, lng: 31.2357 };
 
   const gColor =
     !frame ? colors.textDim
@@ -42,7 +51,7 @@ export default function MapTab() {
         width={winW}
         height={mapH}
         path={recent.map((f) => f.location)}
-        markers={frame ? [{ lat: frame.location.lat, lng: frame.location.lng, color: colors.primary }] : []}
+        markers={currentLoc ? [{ lat: currentLoc.lat, lng: currentLoc.lng, color: colors.primary }] : []}
         rounded={0}
       />
 
@@ -51,7 +60,7 @@ export default function MapTab() {
         <Animated.View entering={FadeInDown.springify()} style={styles.topRow}>
           <View style={styles.titleBox}>
             <Text style={styles.title}>📍 Live Map</Text>
-            <Text style={styles.sub}>{frame ? `${frame.location.lat.toFixed(4)}, ${frame.location.lng.toFixed(4)}` : 'Waiting for GPS…'}</Text>
+            <Text style={styles.sub}>{currentLoc ? `${currentLoc.lat.toFixed(4)}, ${currentLoc.lng.toFixed(4)}` : 'Waiting for GPS…'}</Text>
           </View>
           <StatusPill status={status} />
         </Animated.View>
@@ -78,7 +87,7 @@ export default function MapTab() {
         <View style={styles.hudCard}>
           <View style={styles.hudItem}>
             <Text style={styles.hudLabel}>SPEED</Text>
-            <Text style={styles.hudValue}>{frame ? Math.round(frame.speedKph) : '--'}</Text>
+            <Text style={styles.hudValue}>{liveSpeedKph != null ? Math.round(liveSpeedKph) : (frame ? Math.round(frame.speedKph) : '--')}</Text>
             <Text style={styles.hudUnit}>km/h</Text>
           </View>
           <View style={styles.hudSep} />
@@ -90,7 +99,7 @@ export default function MapTab() {
           <View style={styles.hudSep} />
           <View style={styles.hudItem}>
             <Text style={styles.hudLabel}>HEADING</Text>
-            <Text style={styles.hudValue}>{frame ? Math.round(frame.heading) : '--'}</Text>
+            <Text style={styles.hudValue}>{liveHeading != null ? Math.round(liveHeading) : (frame ? Math.round(frame.heading) : '--')}</Text>
             <Text style={styles.hudUnit}>°</Text>
           </View>
         </View>

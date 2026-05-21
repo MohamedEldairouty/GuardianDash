@@ -2,7 +2,7 @@
   <img src="assets/logo/logo.png" alt="GuardianDash Logo" width="240"/>
 </p>
 
-<h1 align="center">🛡️ GuardianDash — Your Vehicle's Black Box & Guardian Angel</h1>
+<h1 align="center">🛡️ GuardianDash — Your Vehicle's Black Box</h1>
 
 <p align="center">
   🚗 Crash Detection • 📡 Real-Time Telemetry • 🚨 Auto Emergency Call • 📱 Native Android App
@@ -13,7 +13,7 @@
 <p align="center">
   📥 <a href="https://expo.dev/accounts/dairo8/projects/guardiandash/builds/d28c9c50-79b6-4520-8274-de7a3aaa72da"><strong>Install the latest APK</strong></a>
   &nbsp;·&nbsp;
-  📑 <a href="docs/report.pdf"><strong>Project Report (PDF)</strong></a> <em>· coming soon</em>
+  📑 <a href="docs/report.pdf"><strong>Project Report (PDF)</strong></a>
 </p>
 
 ---
@@ -57,37 +57,55 @@ Drive with peace of mind. **GuardianDash has your back.** 💪
 
 ## 🎬 Demo
 
-> ▶️ [**Watch the demo video**](assets/demo.mp4) <em>· coming soon</em>
+> ▶️ [**Watch the demo video**](assets/demo.mp4)
 
 ---
 
-## 🖼 Screenshots
+## 📱 Application Screenshots
 
-<p align="center">
-  <img src="assets/screenshots/login_page.jpg" alt="Login screen" width="240"/>
-  &nbsp;
-  <img src="assets/screenshots/dashboard_unpaired.jpg" alt="Dashboard (waiting for black box)" width="240"/>
-  &nbsp;
-  <img src="assets/screenshots/apk_installed.jpg" alt="APK installed on Android" width="240"/>
-</p>
+<div align="center">
 
-<p align="center">
-  <em>Login · Dashboard (unpaired) · Real APK installed</em>
-</p>
+<table>
+<tr>
+<td align="center">
+<img src="assets/screenshots/apk_installed.jpg" alt="APK installed on Android" width="250"/><br/>
+<b>📲 Android APK Installation</b>
+</td>
 
-<p align="center">
-  <img src="assets/screenshots/dashboard_paired.jpg" alt="Dashboard with live telemetry" width="240"/>
-  &nbsp;
-  <img src="assets/screenshots/crash_alert.jpg" alt="Full-screen crash alert" width="240"/>
-  &nbsp;
-  <img src="assets/screenshots/map_tab.jpg" alt="Live GPS map" width="240"/>
-</p>
+<td align="center">
+<img src="assets/screenshots/login_page.jpg" alt="Login screen" width="250"/><br/>
+<b>🔐 Login Screen</b>
+</td>
 
-<p align="center">
-  <em>Dashboard (paired) · Crash alert · Live map</em>
-  <br/>
-  <em>📸 More screenshots coming soon</em>
-</p>
+<td align="center">
+<img src="assets/screenshots/dashboard_unpaired.jpg" alt="Dashboard waiting for black box" width="250"/><br/>
+<b>📡 Waiting for BlackBox Connection</b>
+</td>
+</tr>
+</table>
+
+<br/>
+
+<table>
+<tr>
+<td align="center">
+<img src="assets/screenshots/dashboard_paired.jpg" alt="Dashboard with telemetry" width="250"/><br/>
+<b>🚗 Live Telemetry Dashboard</b>
+</td>
+
+<td align="center">
+<img src="assets/screenshots/crash_alert.jpg" alt="Crash alert screen" width="250"/><br/>
+<b>🚨 Emergency Crash Alert</b>
+</td>
+
+<td align="center">
+<img src="assets/screenshots/map_tab.jpg" alt="GPS map view" width="250"/><br/>
+<b>🗺 Live GPS Tracking</b>
+</td>
+</tr>
+</table>
+
+</div>
 
 ---
 
@@ -100,7 +118,6 @@ Drive with peace of mind. **GuardianDash has your back.** 💪
 <p align="center">
   <em>STM32F401 + MPU6050 + I²C LCD + HM-10 — sealed inside the box</em>
   <br/>
-  <em>📸 Final enclosure photo coming soon</em>
 </p>
 
 ---

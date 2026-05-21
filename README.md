@@ -10,6 +10,12 @@
   🎓 <em>Final Project — Embedded Systems Course</em>
 </p>
 
+<p align="center">
+  📥 <a href="https://expo.dev/accounts/dairo8/projects/guardiandash/builds/d28c9c50-79b6-4520-8274-de7a3aaa72da"><strong>Install the latest APK</strong></a>
+  &nbsp;·&nbsp;
+  📑 <a href="docs/report.pdf"><strong>Project Report (PDF)</strong></a> <em>· coming soon</em>
+</p>
+
 ---
 
 ## 🧠 Overview
@@ -46,6 +52,56 @@ Drive with peace of mind. **GuardianDash has your back.** 💪
 - **16×2 I²C LCD** showing live `G:1.23` + `STATUS: SAFE / UNSAFE`
 - **HM-10 BLE module** streams telemetry to the phone wirelessly
 - Powered by a USB power bank — fully sealed in the car
+
+---
+
+## 🎬 Demo
+
+> ▶️ [**Watch the demo video**](assets/demo.mp4) <em>· coming soon</em>
+
+---
+
+## 🖼 Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/login_page.jpg" alt="Login screen" width="240"/>
+  &nbsp;
+  <img src="assets/screenshots/dashboard_unpaired.jpg" alt="Dashboard (waiting for black box)" width="240"/>
+  &nbsp;
+  <img src="assets/screenshots/apk_installed.jpg" alt="APK installed on Android" width="240"/>
+</p>
+
+<p align="center">
+  <em>Login · Dashboard (unpaired) · Real APK installed</em>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/dashboard_paired.jpg" alt="Dashboard with live telemetry" width="240"/>
+  &nbsp;
+  <img src="assets/screenshots/crash_alert.jpg" alt="Full-screen crash alert" width="240"/>
+  &nbsp;
+  <img src="assets/screenshots/map_tab.jpg" alt="Live GPS map" width="240"/>
+</p>
+
+<p align="center">
+  <em>Dashboard (paired) · Crash alert · Live map</em>
+  <br/>
+  <em>📸 More screenshots coming soon</em>
+</p>
+
+---
+
+## 🦾 The Hardware
+
+<p align="center">
+  <img src="assets/hardware/blackbox.jpg" alt="Vehicle_BlackBox prototype" width="500"/>
+</p>
+
+<p align="center">
+  <em>STM32F401 + MPU6050 + I²C LCD + HM-10 — sealed inside the box</em>
+  <br/>
+  <em>📸 Final enclosure photo coming soon</em>
+</p>
 
 ---
 
@@ -108,7 +164,7 @@ GuardianDash/
 ## 👥 Team Members
 
 - **[@Mohamed Abdallah Eldairouty](https://github.com/MohamedEldairouty)** – 221001719
-- **[@Rimas Emad](https://github.com/rimaseldib)** – 221001067
+- **[@Rimas Emad](https://github.com/rimas1470-collab)** – 221001067
 - **[@Judy Yehia](https://github.com/Judyehia)** – 221000495
 - **Moaz Ali** – 221001970
 

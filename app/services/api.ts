@@ -24,9 +24,16 @@ export async function getBase(): Promise<string | null> {
   return cachedBase;
 }
 
+function normalizeUrl(u: string): string {
+  let url = u.trim();
+  if (!url) return url;
+  if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+  return url.replace(/\/+$/, '');
+}
+
 export async function setBase(url: string | null): Promise<void> {
-  cachedBase = url;
-  if (url) await db.set(KEY_BASE, url);
+  cachedBase = url ? normalizeUrl(url) : null;
+  if (cachedBase) await db.set(KEY_BASE, cachedBase);
   else await db.remove(KEY_BASE);
 }
 
@@ -87,12 +94,24 @@ export const api = {
   put:  <T = any>(path: string, body?: any)  => request<T>('PUT',    path, body),
   del:  <T = any>(path: string)              => request<T>('DELETE', path),
   // Convenience: pings the open health endpoint without auth.
+  // Returns a string error or null on success.
   health: async (url: string): Promise<boolean> => {
+    return (await api.healthDetail(url)).ok;
+  },
+  healthDetail: async (url: string): Promise<{ ok: boolean; error?: string }> => {
+    const u = normalizeUrl(url);
+    if (!u) return { ok: false, error: 'Empty URL' };
     try {
-      const r = await fetch(`${url.replace(/\/$/, '')}/api/v1/health`);
-      return r.ok;
-    } catch {
-      return false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const r = await fetch(`${u}/api/v1/health`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!r.ok) return { ok: false, error: `HTTP ${r.status}` };
+      const data = await r.json().catch(() => null);
+      if (!data?.ok) return { ok: false, error: 'Unexpected response' };
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err?.name === 'AbortError' ? 'Timed out after 6s' : (err?.message ?? 'Network error') };
     }
   },
 };

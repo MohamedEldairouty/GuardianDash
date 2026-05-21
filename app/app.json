@@ -26,6 +26,7 @@
         "backgroundColor": "#0B0F1A"
       },
       "package": "com.guardiandash.app",
+      "usesCleartextTraffic": true,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

@@ -22,11 +22,11 @@ export default function SetupBackend() {
   const onContinue = async () => {
     setBusy(true);
     setError(null);
-    const reachable = await api.health(url);
+    const result = await api.healthDetail(url);
     setBusy(false);
-    if (!reachable) {
+    if (!result.ok) {
       haptics.warning();
-      setError("Couldn't reach that URL. Check it and try again.");
+      setError(result.error ? `Couldn't reach backend: ${result.error}` : "Couldn't reach that URL.");
       return;
     }
     haptics.success();

@@ -33,13 +33,30 @@
         "ACCESS_BACKGROUND_LOCATION",
         "VIBRATE",
         "CALL_PHONE",
-        "SEND_SMS"
+        "SEND_SMS",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
       ],
       "intentFilters": [],
       "config": {
         "queryIntents": [
-          { "action": "android.intent.action.DIAL", "data": [{ "scheme": "tel" }] },
-          { "action": "android.intent.action.SENDTO", "data": [{ "scheme": "sms" }] }
+          {
+            "action": "android.intent.action.DIAL",
+            "data": [
+              {
+                "scheme": "tel"
+              }
+            ]
+          },
+          {
+            "action": "android.intent.action.SENDTO",
+            "data": [
+              {
+                "scheme": "sms"
+              }
+            ]
+          }
         ]
       }
     },
@@ -48,7 +65,25 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
-    ]
+      "expo-router",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "GuardianDash connects to your Vehicle_BlackBox over Bluetooth to receive live crash telemetry."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d712491e-8a4e-489e-a9a4-df07966d1552"
+      }
+    }
   }
 }

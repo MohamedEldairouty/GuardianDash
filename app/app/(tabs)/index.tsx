@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useLiveTelemetry } from '@/hooks/useLiveTelemetry';
@@ -47,6 +48,9 @@ export default function Dashboard() {
               Power on your Vehicle_BlackBox and pair it via Bluetooth.{'\n'}
               Telemetry will appear here in real time.
             </Text>
+            <Pressable style={styles.pairBtn} onPress={() => router.push('/device/ble')}>
+              <Text style={styles.pairBtnText}>📡  Pair Black Box</Text>
+            </Pressable>
           </Animated.View>
         ) : (
           <>
@@ -96,4 +100,12 @@ const styles = StyleSheet.create({
   waitingEmoji: { fontSize: 56 },
   waitingTitle: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 12 },
   waitingText: { color: colors.textMuted, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 19 },
+  pairBtn: {
+    marginTop: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
+  pairBtnText: { color: colors.text, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
 });

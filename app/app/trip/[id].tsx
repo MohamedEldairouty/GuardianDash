@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { formatDuration, formatWhen, centerOfPath } from '@/services/mock/trips.mock';
+import { formatDuration, formatWhen, centerOfPath } from '@/services/format';
 import { useTripsStore } from '@/stores/trips.store';
 import { TileMap } from '@/components/map/TileMap';
 import { colors } from '@/constants/colors';

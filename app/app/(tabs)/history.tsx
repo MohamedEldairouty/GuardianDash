@@ -4,7 +4,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as haptics from '@/services/haptics';
-import { formatDuration, formatWhen } from '@/services/mock/trips.mock';
+import { formatDuration, formatWhen } from '@/services/format';
 import { useCrashStore } from '@/stores/crash.store';
 import { useTripsStore } from '@/stores/trips.store';
 import { colors } from '@/constants/colors';

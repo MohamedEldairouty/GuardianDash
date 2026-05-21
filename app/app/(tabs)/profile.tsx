@@ -116,6 +116,14 @@ export default function Profile() {
 
         <Text style={styles.section}>BLACK BOX</Text>
         <View style={styles.card}>
+          <Row
+            icon="📡"
+            title="Pair via Bluetooth"
+            sub="Scan and connect to the Vehicle_BlackBox"
+            right={<Text style={styles.chev}>›</Text>}
+            onPress={() => router.push('/device/ble')}
+          />
+          <View style={styles.divider} />
           <Row icon="📟" title="Display" sub="16×2 I²C LCD · Live mirror on dashboard" />
           <View style={styles.divider} />
           <Row icon="🧭" title="Sensor" sub="MPU6050 · ±2g accel @ 0x68" />

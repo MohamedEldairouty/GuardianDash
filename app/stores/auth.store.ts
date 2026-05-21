@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: userFromApi(r.user) });
       return { ok: true };
     } catch (err: any) {
-      if (err instanceof ApiError && err.status === 0) return { ok: false, error: 'Cannot reach backend — check your connection.' };
+      if (err instanceof ApiError && err.status === 0) return { ok: false, error: `Cannot reach backend: ${err.message}` };
       return { ok: false, error: err?.message ?? 'Registration failed' };
     }
   },
@@ -77,7 +77,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: userFromApi(r.user) });
       return { ok: true };
     } catch (err: any) {
-      if (err instanceof ApiError && err.status === 0) return { ok: false, error: 'Cannot reach backend — check your connection.' };
+      if (err instanceof ApiError && err.status === 0) return { ok: false, error: `Cannot reach backend: ${err.message}` };
       return { ok: false, error: err?.message ?? 'Login failed' };
     }
   },

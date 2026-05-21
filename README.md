@@ -79,25 +79,37 @@ Drive with peace of mind. **GuardianDash has your back.** 💪
 ## 🏗 System Architecture
 
 ```
-       ┌──────────────────────────┐
-       │   🚗 Vehicle_BlackBox    │
-       │   STM32F401 firmware     │
-       │   • MPU6050 @ I²C 0x68   │
-       │   • G = √(Ax² + Ay² + Az²)│
-       │   • 16×2 LCD readout      │
-       └───────────┬──────────────┘
-                   │ telemetry stream (UART → bridge → WebSocket)
-                   ▼
-       ┌──────────────────────────┐
-       │  📱 GuardianDash App     │
-       │  React Native + Expo     │
-       │  • Live LCD mirror       │
-       │  • G-force bar + chart   │
-       │  • Crash alert + eCall   │
-       │  • Trip history & map    │
-       │  • Emergency contacts    │
-       └──────────────────────────┘
+   [🔋 Power bank]
+         │ 5V
+         ▼
+   ┌────────────────────────────┐         📶  Bluetooth (HC-05)
+   │  🚗 Vehicle_BlackBox       │  ─────────────────────┐
+   │  STM32F401 firmware        │                       ▼
+   │  • MPU6050 @ I²C 0x68      │              ┌──────────────┐
+   │  • G = √(Ax² + Ay² + Az²)  │              │  📱 Phone    │
+   │  • 16×2 LCD readout         │              │  GuardianDash │
+   │  • UART → HC-05 BT          │              └──────┬───────┘
+   │  (sealed inside the box 📦) │                     │ HTTPS
+   └────────────────────────────┘                      ▼
+                                          ┌──────────────────────────┐
+                                          │  ☁️  GuardianDash API    │
+                                          │  Node + Express + SQLite │
+                                          │  hosted on Render.com    │
+                                          └──────────────────────────┘
 ```
+
+The system has **three independent processes** that don't need each other to
+function:
+
+- **Hardware**: STM32 + sensor + LCD inside the car, powered by a power bank.
+  LCD shows live G + SAFE/UNSAFE on its own.
+- **Mobile app**: standalone APK that talks to the cloud backend over HTTPS
+  and (when paired) the black-box over Bluetooth.
+- **Cloud backend**: persists accounts, contacts, trips, stats. Auto-deploys
+  from GitHub via Render.
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the cloud deploy and
+[`hardware/WIRELESS.md`](hardware/WIRELESS.md) for the Bluetooth upgrade.
 
 ---
 

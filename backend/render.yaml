@@ -1,0 +1,38 @@
+# Render Blueprint for the GuardianDash backend.
+#
+# How to deploy:
+#   1. Push this repo to GitHub.
+#   2. Sign in at https://dashboard.render.com (free, GitHub auth).
+#   3. Click "New" → "Blueprint" → connect your GuardianDash repo.
+#   4. Render reads this file and provisions a Web Service + a persistent disk
+#      for the SQLite database.
+#   5. After deploy you'll get a URL like
+#        https://guardiandash-api.onrender.com
+#      Set EXPO_PUBLIC_API_BASE to that in app/.env and you're done.
+#
+# Free tier caveats:
+#   - Free instances sleep after 15 min of inactivity.
+#     First request after sleep takes ~30s while it spins back up.
+#   - 1 GB persistent disk is included free.
+
+services:
+  - type: web
+    name: guardiandash-api
+    runtime: docker
+    region: frankfurt          # change to your nearest region
+    plan: free
+    rootDir: backend
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GD_API_PORT
+        value: 4000
+      - key: GD_JWT_SECRET
+        generateValue: true     # Render generates a strong random secret
+      - key: GD_DB_PATH
+        value: /data/guardiandash.db
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1

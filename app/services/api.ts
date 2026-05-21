@@ -85,22 +85,31 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const base = await getBase();
+  if (!base) throw new ApiError('Backend not configured', 0);
   await ensureHydrated();
-  if (!cachedBase) throw new ApiError('Backend not configured', 0);
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (cachedToken) headers.Authorization = `Bearer ${cachedToken}`;
 
-  const url = `${cachedBase.replace(/\/$/, '')}/api/v1${path}`;
+  const url = `${base}/api/v1${path}`;
+  console.log(`[api] ${method} ${url}`);
   let res: Response;
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     res = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
+    clearTimeout(timer);
   } catch (err: any) {
-    throw new ApiError(`Network error: ${err?.message ?? 'fetch failed'}`, 0);
+    const reason = err?.name === 'AbortError' ? 'timed out after 8s'
+      : err?.message ?? 'fetch failed';
+    console.log(`[api] ${method} ${url}  →  ${reason}`);
+    throw new ApiError(`${reason} (${url})`, 0);
   }
 
   let json: any = null;

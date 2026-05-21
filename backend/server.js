@@ -52,11 +52,6 @@ app.post('/api/v1/auth/register', (req, res) => {
   ).run(name.trim(), e, hash(password), Date.now());
 
   const user = { id: info.lastInsertRowid, name: name.trim(), email: e };
-  // Seed two starter contacts so the new account isn't empty.
-  const seed = db.prepare('INSERT INTO contacts (user_id, name, phone, relationship, priority, enabled) VALUES (?,?,?,?,?,1)');
-  seed.run(user.id, 'Mom', '+201001234567', 'Mother', 1);
-  seed.run(user.id, 'Dad', '+201007654321', 'Father', 2);
-
   res.json({ token: sign(user), user });
 });
 

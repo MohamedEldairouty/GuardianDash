@@ -9,7 +9,7 @@ import { useContactsStore } from '@/stores/contacts.store';
 import { useTripsStore } from '@/stores/trips.store';
 import { useDeviceGPS } from '@/hooks/useDeviceGPS';
 import { connectBridge, loadBridgeUrl } from '@/services/liveBridge';
-import { api, getBase, isEnvBase, setBase } from '@/services/api';
+import { getBase } from '@/services/api';
 import { colors } from '@/constants/colors';
 
 function GlobalEffects() {
@@ -31,34 +31,7 @@ function AuthGate() {
   const clearContacts = useContactsStore((s) => s.clear);
   const loadTrips = useTripsStore((s) => s.load);
   const clearTrips = useTripsStore((s) => s.clear);
-  const [hasBackend, setHasBackend] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const base = await getBase();
-      if (!base) {
-        setHasBackend(false);
-        useAuthStore.setState({ hydrated: true, user: null });
-        return;
-      }
-      // If the URL is baked in via env var, trust it and let login/calls
-      // surface their own errors. Don't bounce to setup — there is none.
-      if (isEnvBase()) {
-        setHasBackend(true);
-        hydrate();
-        return;
-      }
-      // Otherwise verify the saved URL still answers. If not, bounce to setup.
-      const reachable = await api.health(base);
-      if (!reachable) {
-        setHasBackend(false);
-        useAuthStore.setState({ hydrated: true, user: null });
-        return;
-      }
-      setHasBackend(true);
-      hydrate();
-    })();
-  }, [hydrate]);
+  useEffect(() => { hydrate(); }, [hydrate]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -72,21 +45,15 @@ function AuthGate() {
   }, [user, hydrated, loadContacts, clearContacts, loadTrips, clearTrips]);
 
   useEffect(() => {
-    if (!navState?.key || hasBackend === null || !hydrated) return;
+    if (!navState?.key || !hydrated) return;
     const root = segments[0];
-    const inSetup = root === '(setup)';
     const inAuth = root === '(auth)';
-
-    if (!hasBackend) {
-      if (!inSetup) router.replace('/(setup)/backend');
-      return;
-    }
     if (!user) {
       if (!inAuth) router.replace('/(auth)/login');
       return;
     }
-    if (inAuth || inSetup) router.replace('/(tabs)');
-  }, [user, hydrated, hasBackend, segments, router, navState?.key]);
+    if (inAuth) router.replace('/(tabs)');
+  }, [user, hydrated, segments, router, navState?.key]);
 
   return null;
 }
@@ -104,14 +71,11 @@ export default function RootLayout() {
             headerShadowVisible: false,
           }}
         >
-          <Stack.Screen name="(setup)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="crash/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="settings/sensitivity" options={{ title: 'Crash Sensitivity', headerShown: true }} />
-          <Stack.Screen name="device/connect" options={{ title: 'Black Box', headerShown: true }} />
-          <Stack.Screen name="device/backend" options={{ title: 'API Backend', headerShown: true }} />
           <Stack.Screen name="contacts/index" options={{ title: 'Emergency Contacts', headerShown: true }} />
           <Stack.Screen name="contacts/edit" options={{ presentation: 'modal', title: 'Contact', headerShown: true }} />
           <Stack.Screen

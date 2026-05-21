@@ -1,20 +1,14 @@
-import { useEffect } from 'react';
-import { mockTelemetry } from '@/services/mock/telemetry.mock';
-import { useTelemetryStore } from '@/stores/telemetry.store';
-
 /**
- * Subscribes to mock telemetry frames. Once the real hardware bridge
- * is connected (see services/liveBridge.ts), the bridge pushes frames
- * directly into the store; the mock keeps running in the background
- * but its output is replaced by the bridge's setFrame() calls.
+ * Telemetry subscription.
+ *
+ * Real production behaviour: this hook does nothing on its own. Live
+ * telemetry frames are pushed into the store by:
+ *   - services/liveBridge.ts (laptop USB-UART bridge — debug-only)
+ *   - services/ble.ts        (HM-10 BLE — primary path, once paired)
+ *
+ * Until a transport is connected, the dashboard shows a "waiting for
+ * black box" state. No more mock data stream.
  */
 export function useLiveTelemetry() {
-  const setFrame = useTelemetryStore((s) => s.setFrame);
-  const hardwareConnected = useTelemetryStore((s) => s.hardwareConnected);
-
-  useEffect(() => {
-    if (hardwareConnected) return; // bridge is in charge
-    const unsub = mockTelemetry.subscribe(setFrame);
-    return unsub;
-  }, [setFrame, hardwareConnected]);
+  // intentionally empty
 }

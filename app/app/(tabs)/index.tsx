@@ -1,43 +1,26 @@
-import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useLiveTelemetry } from '@/hooks/useLiveTelemetry';
 import { useTelemetryStore } from '@/stores/telemetry.store';
-import { useCrashStore } from '@/stores/crash.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { buildMockCrash } from '@/services/mock/crash.mock';
 import { SpeedGauge } from '@/components/dashboard/SpeedGauge';
 import { GForceBar } from '@/components/dashboard/GForceBar';
 import { StatusPill } from '@/components/dashboard/StatusPill';
 import { LcdMirror } from '@/components/dashboard/LcdMirror';
 import { StatCard } from '@/components/ui/StatCard';
 import { LogoMark } from '@/components/ui/Logo';
-import * as haptics from '@/services/haptics';
 import { colors } from '@/constants/colors';
 
 export default function Dashboard() {
   useLiveTelemetry();
   const frame = useTelemetryStore((s) => s.latest);
-  const recent = useTelemetryStore((s) => s.recent);
   const status = useTelemetryStore((s) => s.status);
   const peakG = useTelemetryStore((s) => s.peakGRecent);
-  const resetPeak = useTelemetryStore((s) => s.resetPeak);
-  const trigger = useCrashStore((s) => s.trigger);
   const user = useAuthStore((s) => s.user);
   const firstName = user?.name.split(' ')[0] ?? 'driver';
 
-  const simulateCrash = () => {
-    haptics.crash();
-    const loc = frame?.location ?? { lat: 30.0444, lng: 31.2357 };
-    trigger(buildMockCrash(loc), recent);
-    router.push('/alert');
-  };
-
-  const onResetPeak = () => {
-    haptics.tap();
-    resetPeak();
-  };
+  const hasData = !!frame;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -56,39 +39,36 @@ export default function Dashboard() {
           <StatusPill status={status} />
         </View>
 
-        {/* G-force is the hardware's only real signal — make it the hero */}
-        <Animated.View entering={FadeInDown.duration(500).springify()}>
-          <LcdMirror gForce={frame?.gForce ?? 0} />
-        </Animated.View>
+        {!hasData ? (
+          <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.waitingCard}>
+            <Text style={styles.waitingEmoji}>🛰️</Text>
+            <Text style={styles.waitingTitle}>Waiting for Black Box</Text>
+            <Text style={styles.waitingText}>
+              Power on your Vehicle_BlackBox and pair it via Bluetooth.{'\n'}
+              Telemetry will appear here in real time.
+            </Text>
+          </Animated.View>
+        ) : (
+          <>
+            <Animated.View entering={FadeInDown.duration(500).springify()}>
+              <LcdMirror gForce={frame.gForce} />
+            </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(80).duration(500).springify()}>
-          <GForceBar gForce={frame?.gForce ?? 0} peak={peakG} />
-        </Animated.View>
+            <Animated.View entering={FadeInDown.delay(80).duration(500).springify()}>
+              <GForceBar gForce={frame.gForce} peak={peakG} />
+            </Animated.View>
 
-        {/* Speed gauge — demo only, real hardware doesn't have GPS yet */}
-        <Animated.View entering={FadeInDown.delay(140).duration(500).springify()} style={styles.gaugeWrap}>
-          <SpeedGauge speedKph={frame?.speedKph ?? 0} />
-        </Animated.View>
+            <Animated.View entering={FadeInDown.delay(140).duration(500).springify()} style={styles.gaugeWrap}>
+              <SpeedGauge speedKph={frame.speedKph} />
+            </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200).duration(500).springify()} style={styles.row}>
-          <StatCard label="ACCEL X" value={frame ? frame.accel.x.toFixed(2) : '--'} unit="g" style={{ marginRight: 6 }} />
-          <StatCard label="ACCEL Y" value={frame ? frame.accel.y.toFixed(2) : '--'} unit="g" style={{ marginHorizontal: 6 }} />
-          <StatCard label="ACCEL Z" value={frame ? frame.accel.z.toFixed(2) : '--'} unit="g" style={{ marginLeft: 6 }} />
-        </Animated.View>
-
-        <Pressable style={styles.resetBtn} onPress={onResetPeak}>
-          <Text style={styles.resetText}>↺  Reset peak G</Text>
-        </Pressable>
-
-        <Animated.View entering={FadeInDown.delay(260).duration(500).springify()}>
-          <Pressable style={styles.crashBtn} onPress={simulateCrash}>
-            <Text style={styles.crashEmoji}>💥</Text>
-            <View>
-              <Text style={styles.crashText}>SIMULATE CRASH</Text>
-              <Text style={styles.crashSub}>Dev only — triggers full alert flow</Text>
-            </View>
-          </Pressable>
-        </Animated.View>
+            <Animated.View entering={FadeInDown.delay(200).duration(500).springify()} style={styles.row}>
+              <StatCard label="ACCEL X" value={frame.accel.x.toFixed(2)} unit="g" style={{ marginRight: 6 }} />
+              <StatCard label="ACCEL Y" value={frame.accel.y.toFixed(2)} unit="g" style={{ marginHorizontal: 6 }} />
+              <StatCard label="ACCEL Z" value={frame.accel.z.toFixed(2)} unit="g" style={{ marginLeft: 6 }} />
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -103,30 +83,17 @@ const styles = StyleSheet.create({
   greeting: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   gaugeWrap: { alignItems: 'center', paddingVertical: 4 },
   row: { flexDirection: 'row' },
-  resetBtn: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 999,
+  waitingCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: 18,
+    padding: 32,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  resetText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  crashBtn: {
-    flexDirection: 'row',
+    borderStyle: 'dashed',
     alignItems: 'center',
-    backgroundColor: colors.danger,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 14,
-    shadowColor: colors.danger,
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    marginTop: 40,
   },
-  crashEmoji: { fontSize: 28 },
-  crashText: { color: colors.text, fontWeight: '800', fontSize: 15, letterSpacing: 1 },
-  crashSub: { color: colors.text, opacity: 0.8, fontSize: 11, marginTop: 2 },
+  waitingEmoji: { fontSize: 56 },
+  waitingTitle: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 12 },
+  waitingText: { color: colors.textMuted, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 19 },
 });

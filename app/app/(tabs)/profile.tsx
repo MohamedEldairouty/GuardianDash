@@ -43,7 +43,6 @@ export default function Profile() {
   const loadSettings = useSettingsStore((s) => s.load);
   const settingsLoaded = useSettingsStore((s) => s.loaded);
   const [notif, setNotif] = useState(true);
-  const [autoCall, setAutoCall] = useState(true);
 
   useEffect(() => {
     if (!settingsLoaded) loadSettings();
@@ -107,20 +106,6 @@ export default function Profile() {
           />
           <View style={styles.divider} />
           <Row
-            icon="📞"
-            title="Auto-call after crash"
-            sub="Calls contact #1 after 30s"
-            right={
-              <Switch
-                value={autoCall}
-                onValueChange={setAutoCall}
-                trackColor={{ true: colors.success, false: colors.border }}
-                thumbColor={colors.text}
-              />
-            }
-          />
-          <View style={styles.divider} />
-          <Row
             icon="🎚️"
             title="Crash sensitivity"
             sub={`${sensitivity[0].toUpperCase() + sensitivity.slice(1)} — ${threshold.toFixed(1)}g threshold`}
@@ -131,22 +116,6 @@ export default function Profile() {
 
         <Text style={styles.section}>BLACK BOX</Text>
         <View style={styles.card}>
-          <Row
-            icon="🛰️"
-            title="Connect to Black Box"
-            sub="Pair via USB-serial bridge"
-            right={<Text style={styles.chev}>›</Text>}
-            onPress={() => router.push('/device/connect')}
-          />
-          <View style={styles.divider} />
-          <Row
-            icon="☁️"
-            title="API Backend"
-            sub="Sync accounts & contacts across devices"
-            right={<Text style={styles.chev}>›</Text>}
-            onPress={() => router.push('/device/backend')}
-          />
-          <View style={styles.divider} />
           <Row icon="📟" title="Display" sub="16×2 I²C LCD · Live mirror on dashboard" />
           <View style={styles.divider} />
           <Row icon="🧭" title="Sensor" sub="MPU6050 · ±2g accel @ 0x68" />

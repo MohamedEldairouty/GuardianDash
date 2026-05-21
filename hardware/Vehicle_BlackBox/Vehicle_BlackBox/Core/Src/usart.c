@@ -9,12 +9,25 @@
 #include "usart.h"
 
 /*
- * USART2 baud-rate divisor for 115200 baud with PCLK1 = 16 MHz, OVER8 = 0.
- *   USARTDIV = fck / (16 * BAUD) = 16,000,000 / (16 * 115200) = 8.68
- *   BRR (16-bit) = round(USARTDIV * 16) = 139 = 0x8B
- *   Mantissa = 8, Fraction = 11  -> (8 << 4) | 11 = 0x8B
+ * USART2 baud-rate divisor.
+ * PCLK1 = 16 MHz (HSI, no PLL — matches SystemClock_Config in main.c)
+ * OVER8 = 0
+ *
+ *   USARTDIV = fck / (16 * BAUD)
+ *   BRR (16-bit) = round(USARTDIV * 16)
+ *
+ * Pre-computed values:
+ *   115200 baud → BRR = 139    (0x008B)   ← USB-UART / serial terminals
+ *   9600   baud → BRR = 1667   (0x0683)   ← HM-10 / HC-05 default
+ *
+ * Pick ONE. The bridge.js script in /bridge auto-detects whatever the
+ * firmware uses as long as the GD_BAUD env var matches.
  */
 #define USART2_BRR_115200_16MHZ  0x008B
+#define USART2_BRR_9600_16MHZ    0x0683
+
+/* >>> Switch this to USART2_BRR_9600_16MHZ when wiring to HM-10 / HC-05 <<< */
+#define USART2_BRR  USART2_BRR_115200_16MHZ
 
 void Usart2_Init(void)
 {
@@ -40,7 +53,7 @@ void Usart2_Init(void)
     USART2->CR1 = 0;
     USART2->CR2 = 0;
     USART2->CR3 = 0;
-    USART2->BRR = USART2_BRR_115200_16MHZ;
+    USART2->BRR = USART2_BRR;
 
     /* 4. Enable transmitter and USART. */
     USART2->CR1 |= USART_CR1_TE;  /* TX enable */

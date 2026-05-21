@@ -42,9 +42,32 @@ HC-05 draws ~30 mA. Total system with STM32 + LCD + MPU6050 + HC-05 ≈
 Same idea but using Bluetooth Low Energy. Pairs more cleanly with both iOS
 and Android. Slightly more expensive (~$5).
 
+### Wiring
+```
+STM32      HM-10
+─────      ─────
+GND ────── GND
+3.3V ───── VCC      (HM-10 accepts 3.3-5V; STM32 logic is 3.3V so no level shifter needed)
+PA2  ───── RX       (STM32 TX2 → HM-10 RX)
+PA3  ───── TX       (HM-10 TX → STM32 RX2, optional for now)
+```
+
+### Firmware change needed
+**One line.** HM-10 default baud is **9600**, our firmware defaults to 115200.
+In `Core/Src/usart.c`, change:
+```c
+#define USART2_BRR  USART2_BRR_115200_16MHZ
+```
+to:
+```c
+#define USART2_BRR  USART2_BRR_9600_16MHZ
+```
+Then rebuild & reflash.
+
 ### App library
 `react-native-ble-plx` — Expo has a config plugin for it. Same dev-client
-build requirement as HC-05.
+build requirement as HC-05. The library is also more polished than the BT
+Classic one — recommended for production apps.
 
 ---
 

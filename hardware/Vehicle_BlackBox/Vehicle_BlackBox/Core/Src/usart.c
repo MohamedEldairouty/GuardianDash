@@ -27,7 +27,7 @@
 #define USART2_BRR_9600_16MHZ    0x0683
 
 /* >>> Switch this to USART2_BRR_9600_16MHZ when wiring to HM-10 / HC-05 <<< */
-#define USART2_BRR  USART2_BRR_115200_16MHZ
+#define USART2_BRR  USART2_BRR_9600_16MHZ
 
 void Usart2_Init(void)
 {

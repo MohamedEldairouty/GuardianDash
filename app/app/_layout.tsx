@@ -68,6 +68,7 @@ export default function RootLayout() {
           <Stack.Screen name="crash/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="settings/sensitivity" options={{ title: 'Crash Sensitivity', headerShown: true }} />
           <Stack.Screen name="device/connect" options={{ title: 'Black Box', headerShown: true }} />
+          <Stack.Screen name="device/backend" options={{ title: 'API Backend', headerShown: true }} />
           <Stack.Screen name="contacts/index" options={{ title: 'Emergency Contacts', headerShown: true }} />
           <Stack.Screen name="contacts/edit" options={{ presentation: 'modal', title: 'Contact', headerShown: true }} />
           <Stack.Screen

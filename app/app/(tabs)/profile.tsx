@@ -139,6 +139,14 @@ export default function Profile() {
             onPress={() => router.push('/device/connect')}
           />
           <View style={styles.divider} />
+          <Row
+            icon="☁️"
+            title="API Backend"
+            sub="Sync accounts & contacts across devices"
+            right={<Text style={styles.chev}>›</Text>}
+            onPress={() => router.push('/device/backend')}
+          />
+          <View style={styles.divider} />
           <Row icon="📟" title="Display" sub="16×2 I²C LCD · Live mirror on dashboard" />
           <View style={styles.divider} />
           <Row icon="🧭" title="Sensor" sub="MPU6050 · ±2g accel @ 0x68" />

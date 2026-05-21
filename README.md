@@ -117,7 +117,8 @@ GuardianDash/
 ├── bridge/                # 🔌 UART → WebSocket bridge (Node.js)
 │                          #    Streams live STM32 telemetry to the app
 │
-├── backend/               # ☁️  (Future) Cloud API + push notifications
+├── backend/               # ☁️  Node + Express + SQLite API
+│                          #    Stores users, contacts, trips, locations, stats
 │
 ├── hardware/              # 🔌 STM32 firmware + schematics
 │   ├── stm32/             #    Embedded C / HAL code

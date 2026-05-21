@@ -31,8 +31,16 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "VIBRATE",
-        "CALL_PHONE"
-      ]
+        "CALL_PHONE",
+        "SEND_SMS"
+      ],
+      "intentFilters": [],
+      "config": {
+        "queryIntents": [
+          { "action": "android.intent.action.DIAL", "data": [{ "scheme": "tel" }] },
+          { "action": "android.intent.action.SENDTO", "data": [{ "scheme": "sms" }] }
+        ]
+      }
     },
     "web": {
       "bundler": "metro",

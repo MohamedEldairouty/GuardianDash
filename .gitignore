@@ -61,6 +61,11 @@ desktop.ini
 *.tsbuildinfo
 coverage/
 
+# Backend SQLite DB files (per-machine state)
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
 # Hardware / STM32CubeIDE build artifacts
 hardware/**/Debug/
 hardware/**/Release/

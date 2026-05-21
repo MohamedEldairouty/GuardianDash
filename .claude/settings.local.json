@@ -7,7 +7,9 @@
       "Bash(npx --yes svgexport assets/logo/logo.svg app/assets/favicon.png 64:64)",
       "Bash(npx tsc *)",
       "Bash(npx expo *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(git add *)",
+      "Bash(git -c user.email=\"team@guardiandash.local\" -c user.name=\"GuardianDash Team\" commit -m \"Firmware: add register-level USART2 driver and CSV telemetry output for the live bridge\")"
     ]
   }
 }

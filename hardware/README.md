@@ -48,7 +48,15 @@ Vehicle_BlackBox/
 
 ## How it talks to the mobile app
 
-> 🚧 Currently the firmware only drives the LCD. The mobile app's "Live LCD Mirror"
-> card on the Dashboard already replicates the exact line format the firmware produces
-> (`G:1.23` and `STATUS: SAFE / UNSAFE`), so once a UART → WiFi bridge is wired up,
-> the same code on the device feeds the same numbers to the phone with no UI changes.
+✅ **Integrated.** The firmware streams live telemetry over **USART2 (PA2/PA3 @ 115200 baud)**
+in CSV format:
+```
+G:1.04,X:0.05,Y:-0.01,Z:1.00
+```
+
+The `bridge/` Node.js script reads these lines over USB-serial and forwards them
+to the mobile app via WebSocket. The app's **Live LCD Mirror** card on the
+Dashboard then renders the same `G:1.23` / `STATUS: SAFE / UNSAFE` as the on-board
+LCD — but driven by the real sensor in real time.
+
+See [UART_BRIDGE.md](UART_BRIDGE.md) for the wiring, build and bridge-launch steps.

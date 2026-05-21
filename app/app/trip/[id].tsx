@@ -1,13 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockTrips, formatDuration, formatWhen, centerOfPath } from '@/services/mock/trips.mock';
+import { formatDuration, formatWhen, centerOfPath } from '@/services/mock/trips.mock';
+import { useTripsStore } from '@/stores/trips.store';
 import { TileMap } from '@/components/map/TileMap';
 import { colors } from '@/constants/colors';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const trip = mockTrips.find((t) => t.id === id);
+  const trip = useTripsStore((s) => s.trips.find((t) => t.id === id));
   const { width: winW } = useWindowDimensions();
   const mapW = Math.min(winW - 40, 500);
 

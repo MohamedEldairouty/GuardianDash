@@ -1,13 +1,15 @@
 import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '@/stores/auth.store';
 import { useContactsStore } from '@/stores/contacts.store';
+import { useTripsStore } from '@/stores/trips.store';
 import { useDeviceGPS } from '@/hooks/useDeviceGPS';
 import { connectBridge, loadBridgeUrl } from '@/services/liveBridge';
+import { getBase } from '@/services/api';
 import { colors } from '@/constants/colors';
 
 function GlobalEffects() {
@@ -27,24 +29,46 @@ function AuthGate() {
   const hydrate = useAuthStore((s) => s.hydrate);
   const loadContacts = useContactsStore((s) => s.load);
   const clearContacts = useContactsStore((s) => s.clear);
+  const loadTrips = useTripsStore((s) => s.load);
+  const clearTrips = useTripsStore((s) => s.clear);
+  const [hasBackend, setHasBackend] = useState<boolean | null>(null);
 
   useEffect(() => {
-    hydrate();
+    (async () => {
+      const base = await getBase();
+      setHasBackend(!!base);
+      if (base) hydrate();
+      else useAuthStore.setState({ hydrated: true, user: null });
+    })();
   }, [hydrate]);
 
   useEffect(() => {
     if (!hydrated) return;
-    if (user) loadContacts(user.id);
-    else clearContacts();
-  }, [user, hydrated, loadContacts, clearContacts]);
+    if (user) {
+      loadContacts();
+      loadTrips();
+    } else {
+      clearContacts();
+      clearTrips();
+    }
+  }, [user, hydrated, loadContacts, clearContacts, loadTrips, clearTrips]);
 
   useEffect(() => {
-    if (!navState?.key) return; // navigator not mounted yet
-    if (!hydrated) return;
-    const inAuth = segments[0] === '(auth)';
-    if (!user && !inAuth) router.replace('/(auth)/login');
-    else if (user && inAuth) router.replace('/(tabs)');
-  }, [user, hydrated, segments, router, navState?.key]);
+    if (!navState?.key || hasBackend === null || !hydrated) return;
+    const root = segments[0];
+    const inSetup = root === '(setup)';
+    const inAuth = root === '(auth)';
+
+    if (!hasBackend) {
+      if (!inSetup) router.replace('/(setup)/backend');
+      return;
+    }
+    if (!user) {
+      if (!inAuth) router.replace('/(auth)/login');
+      return;
+    }
+    if (inAuth || inSetup) router.replace('/(tabs)');
+  }, [user, hydrated, hasBackend, segments, router, navState?.key]);
 
   return null;
 }
@@ -62,6 +86,7 @@ export default function RootLayout() {
             headerShadowVisible: false,
           }}
         >
+          <Stack.Screen name="(setup)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />

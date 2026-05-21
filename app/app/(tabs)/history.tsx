@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as haptics from '@/services/haptics';
-import { mockTrips, formatDuration, formatWhen } from '@/services/mock/trips.mock';
+import { formatDuration, formatWhen } from '@/services/mock/trips.mock';
 import { useCrashStore } from '@/stores/crash.store';
+import { useTripsStore } from '@/stores/trips.store';
 import { colors } from '@/constants/colors';
 import type { Trip } from '@/types/trip.types';
 import type { CrashEvent } from '@/types/crash.types';
@@ -65,14 +66,21 @@ function CrashRow({ crash }: { crash: CrashEvent }) {
 
 export default function History() {
   const crashHistory = useCrashStore((s) => s.history);
-  const totalKm = mockTrips.reduce((a, t) => a + t.distanceKm, 0);
-  const totalCrashes = mockTrips.reduce((a, t) => a + t.crashCount, 0) + crashHistory.length;
+  const trips = useTripsStore((s) => s.trips);
+  const loadTrips = useTripsStore((s) => s.load);
+  const loaded = useTripsStore((s) => s.loaded);
+  const totalKm = trips.reduce((a, t) => a + t.distanceKm, 0);
+  const totalCrashes = trips.reduce((a, t) => a + t.crashCount, 0) + crashHistory.length;
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (!loaded) loadTrips();
+  }, [loaded, loadTrips]);
 
   const onRefresh = async () => {
     haptics.tap();
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 700));
+    await loadTrips();
     setRefreshing(false);
   };
 
@@ -91,7 +99,7 @@ export default function History() {
         }
       >
         <Text style={styles.title}>🗺️ Trip History</Text>
-        <Text style={styles.sub}>{mockTrips.length} trips · all-time</Text>
+        <Text style={styles.sub}>{trips.length} trips · all-time</Text>
 
         <View style={styles.summary}>
           <View style={styles.summaryItem}>
@@ -100,7 +108,7 @@ export default function History() {
           </View>
           <View style={styles.sep} />
           <View style={styles.summaryItem}>
-            <Text style={styles.sumValue}>{mockTrips.length}</Text>
+            <Text style={styles.sumValue}>{trips.length}</Text>
             <Text style={styles.sumLabel}>trips</Text>
           </View>
           <View style={styles.sep} />
@@ -122,11 +130,19 @@ export default function History() {
         ) : null}
 
         <Text style={styles.section}>TRIPS</Text>
-        <View style={{ gap: 10 }}>
-          {mockTrips.map((t, i) => (
-            <TripRow key={t.id} trip={t} index={i} />
-          ))}
-        </View>
+        {trips.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>🛣️</Text>
+            <Text style={styles.emptyTitle}>No trips yet</Text>
+            <Text style={styles.emptyText}>Your drives will appear here once the black box starts recording.</Text>
+          </View>
+        ) : (
+          <View style={{ gap: 10 }}>
+            {trips.map((t, i) => (
+              <TripRow key={t.id} trip={t} index={i} />
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -190,4 +206,17 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center',
   },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: colors.bgElevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  emptyEmoji: { fontSize: 36 },
+  emptyTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 8 },
+  emptyText: { color: colors.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center' },
 });

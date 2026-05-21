@@ -1,31 +1,18 @@
 import { create } from 'zustand';
-import { db, KEYS } from '@/services/db';
-import { api, ApiError, getBase } from '@/services/api';
+import { api } from '@/services/api';
 import type { Contact } from '@/types/user.types';
-
-const DEFAULTS: Omit<Contact, 'id'>[] = [
-  { name: 'Mom', phone: '+201001234567', relationship: 'Mother', priority: 1, enabled: true },
-  { name: 'Dad', phone: '+201007654321', relationship: 'Father', priority: 2, enabled: true },
-];
 
 interface ContactsState {
   contacts: Contact[];
-  loadedFor: string | null;
-  load: (userId: string) => Promise<void>;
+  loaded: boolean;
+  loading: boolean;
+  error: string | null;
+  load: () => Promise<void>;
   upsert: (input: Omit<Contact, 'id'> & { id?: string }) => Promise<void>;
   remove: (id: string) => Promise<void>;
   toggle: (id: string) => Promise<void>;
   setPriority: (id: string, priority: number) => Promise<void>;
   clear: () => void;
-}
-
-async function persistLocal(userId: string, contacts: Contact[]) {
-  await db.set(KEYS.contactsFor(userId), contacts);
-}
-
-async function tryRemote(): Promise<boolean> {
-  const base = await getBase();
-  return !!base;
 }
 
 function rowsToContacts(rows: any[]): Contact[] {
@@ -35,99 +22,76 @@ function rowsToContacts(rows: any[]): Contact[] {
     phone: r.phone,
     relationship: r.relationship,
     priority: r.priority,
-    enabled: r.enabled,
+    enabled: typeof r.enabled === 'boolean' ? r.enabled : r.enabled === 1,
   }));
 }
 
 export const useContactsStore = create<ContactsState>((set, get) => ({
   contacts: [],
-  loadedFor: null,
+  loaded: false,
+  loading: false,
+  error: null,
 
-  load: async (userId) => {
-    if (await tryRemote()) {
-      try {
-        const r = await api.get<{ contacts: Contact[] }>('/contacts');
-        set({ contacts: rowsToContacts(r.contacts as any), loadedFor: userId });
-        return;
-      } catch {}
+  load: async () => {
+    set({ loading: true, error: null });
+    try {
+      const r = await api.get<{ contacts: any[] }>('/contacts');
+      set({ contacts: rowsToContacts(r.contacts), loaded: true, loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err?.message ?? 'Failed to load contacts', loaded: true });
     }
-    let stored = await db.get<Contact[]>(KEYS.contactsFor(userId));
-    if (!stored) {
-      stored = DEFAULTS.map((d, i) => ({ ...d, id: `c_seed_${i}` }));
-      await persistLocal(userId, stored);
-    }
-    set({ contacts: stored, loadedFor: userId });
   },
 
   upsert: async (input) => {
-    const userId = get().loadedFor;
-    if (!userId) return;
-    const list = get().contacts;
-
-    if (await tryRemote()) {
-      try {
-        if (input.id) {
-          const r = await api.put<{ contact: any }>(`/contacts/${input.id}`, input);
-          const updated = rowsToContacts([r.contact])[0];
-          const next = list.map((c) => (c.id === updated.id ? updated : c)).sort((a, b) => a.priority - b.priority);
-          set({ contacts: next });
-        } else {
-          if (list.length >= 5) return;
-          const r = await api.post<{ contact: any }>('/contacts', input);
-          const created = rowsToContacts([r.contact])[0];
-          const next = [...list, created].sort((a, b) => a.priority - b.priority);
-          set({ contacts: next });
-        }
-        return;
-      } catch {}
+    try {
+      if (input.id) {
+        const r = await api.put<{ contact: any }>(`/contacts/${input.id}`, input);
+        const updated = rowsToContacts([r.contact])[0];
+        const next = get().contacts.map((c) => (c.id === updated.id ? updated : c)).sort((a, b) => a.priority - b.priority);
+        set({ contacts: next });
+      } else {
+        if (get().contacts.length >= 5) return;
+        const r = await api.post<{ contact: any }>('/contacts', input);
+        const created = rowsToContacts([r.contact])[0];
+        const next = [...get().contacts, created].sort((a, b) => a.priority - b.priority);
+        set({ contacts: next });
+      }
+    } catch (err: any) {
+      set({ error: err?.message ?? 'Save failed' });
     }
-
-    let next: Contact[];
-    if (input.id) {
-      next = list.map((c) => (c.id === input.id ? { ...c, ...input, id: c.id } : c));
-    } else {
-      if (list.length >= 5) return;
-      next = [...list, { ...input, id: `c_${Date.now()}` } as Contact];
-    }
-    next.sort((a, b) => a.priority - b.priority);
-    await persistLocal(userId, next);
-    set({ contacts: next });
   },
 
   remove: async (id) => {
-    const userId = get().loadedFor;
-    if (!userId) return;
-    if (await tryRemote()) {
-      try { await api.del(`/contacts/${id}`); } catch {}
+    try {
+      await api.del(`/contacts/${id}`);
+      set({ contacts: get().contacts.filter((c) => c.id !== id) });
+    } catch (err: any) {
+      set({ error: err?.message ?? 'Delete failed' });
     }
-    const next = get().contacts.filter((c) => c.id !== id);
-    await persistLocal(userId, next);
-    set({ contacts: next });
   },
 
   toggle: async (id) => {
-    const userId = get().loadedFor;
-    if (!userId) return;
     const target = get().contacts.find((c) => c.id === id);
     if (!target) return;
-    if (await tryRemote()) {
-      try { await api.put(`/contacts/${id}`, { enabled: !target.enabled }); } catch {}
+    const optimistic = get().contacts.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c));
+    set({ contacts: optimistic });
+    try {
+      await api.put(`/contacts/${id}`, { enabled: !target.enabled });
+    } catch (err: any) {
+      // revert on failure
+      set({ contacts: get().contacts.map((c) => (c.id === id ? { ...c, enabled: target.enabled } : c)), error: err?.message });
     }
-    const next = get().contacts.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c));
-    await persistLocal(userId, next);
-    set({ contacts: next });
   },
 
   setPriority: async (id, priority) => {
-    const userId = get().loadedFor;
-    if (!userId) return;
-    if (await tryRemote()) {
-      try { await api.put(`/contacts/${id}`, { priority }); } catch {}
+    try {
+      await api.put(`/contacts/${id}`, { priority });
+      const next = get().contacts.map((c) => (c.id === id ? { ...c, priority } : c)).sort((a, b) => a.priority - b.priority);
+      set({ contacts: next });
+    } catch (err: any) {
+      set({ error: err?.message ?? 'Update failed' });
     }
-    const next = get().contacts.map((c) => (c.id === id ? { ...c, priority } : c)).sort((a, b) => a.priority - b.priority);
-    await persistLocal(userId, next);
-    set({ contacts: next });
   },
 
-  clear: () => set({ contacts: [], loadedFor: null }),
+  clear: () => set({ contacts: [], loaded: false, loading: false, error: null }),
 }));

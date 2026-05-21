@@ -68,7 +68,6 @@ export default function Dashboard() {
         {/* Speed gauge — demo only, real hardware doesn't have GPS yet */}
         <Animated.View entering={FadeInDown.delay(140).duration(500).springify()} style={styles.gaugeWrap}>
           <SpeedGauge speedKph={frame?.speedKph ?? 0} />
-          <Text style={styles.demoTag}>· demo telemetry · GPS planned ·</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(500).springify()} style={styles.row}>
@@ -103,7 +102,6 @@ const styles = StyleSheet.create({
   brand: { fontSize: 20, fontWeight: '800', letterSpacing: 0.3 },
   greeting: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   gaugeWrap: { alignItems: 'center', paddingVertical: 4 },
-  demoTag: { color: colors.textDim, fontSize: 10, letterSpacing: 1.5, marginTop: -4 },
   row: { flexDirection: 'row' },
   resetBtn: {
     alignSelf: 'center',

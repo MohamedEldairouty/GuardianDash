@@ -9,7 +9,7 @@ import { useContactsStore } from '@/stores/contacts.store';
 import { useTripsStore } from '@/stores/trips.store';
 import { useDeviceGPS } from '@/hooks/useDeviceGPS';
 import { connectBridge, loadBridgeUrl } from '@/services/liveBridge';
-import { api, getBase, setBase } from '@/services/api';
+import { api, getBase, isEnvBase, setBase } from '@/services/api';
 import { colors } from '@/constants/colors';
 
 function GlobalEffects() {
@@ -41,8 +41,14 @@ function AuthGate() {
         useAuthStore.setState({ hydrated: true, user: null });
         return;
       }
-      // Verify it actually answers. If not, bounce back to setup so user
-      // isn't trapped at the login screen.
+      // If the URL is baked in via env var, trust it and let login/calls
+      // surface their own errors. Don't bounce to setup — there is none.
+      if (isEnvBase()) {
+        setHasBackend(true);
+        hydrate();
+        return;
+      }
+      // Otherwise verify the saved URL still answers. If not, bounce to setup.
       const reachable = await api.health(base);
       if (!reachable) {
         setHasBackend(false);

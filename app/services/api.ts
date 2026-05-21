@@ -8,6 +8,24 @@ import { db, KEYS } from '@/services/db';
 const KEY_BASE = 'gd:api-base';
 const KEY_TOKEN = 'gd:api-token';
 
+/**
+ * Hard-baked backend URL via env var. Set with:
+ *
+ *   PowerShell: $env:EXPO_PUBLIC_API_BASE='http://192.168.1.42:4000'; npx expo start
+ *   CMD:        set EXPO_PUBLIC_API_BASE=http://192.168.1.42:4000 && npx expo start
+ *   .env:       EXPO_PUBLIC_API_BASE=http://192.168.1.42:4000
+ *
+ * When set, the app skips the in-app setup screen entirely.
+ * The saved DB value (from manual setup) is used only when this is unset.
+ */
+const ENV_BASE: string | null = (() => {
+  const raw = process.env.EXPO_PUBLIC_API_BASE;
+  if (!raw) return null;
+  let u = raw.trim();
+  if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
+  return u.replace(/\/+$/, '');
+})();
+
 let cachedBase: string | null = null;
 let cachedToken: string | null = null;
 let hydrated = false;
@@ -20,8 +38,14 @@ async function ensureHydrated() {
 }
 
 export async function getBase(): Promise<string | null> {
+  // Env override always wins — built into the bundle, can't be cleared from the app.
+  if (ENV_BASE) return ENV_BASE;
   await ensureHydrated();
   return cachedBase;
+}
+
+export function isEnvBase(): boolean {
+  return ENV_BASE !== null;
 }
 
 function normalizeUrl(u: string): string {

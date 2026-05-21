@@ -2,7 +2,7 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { setBase } from '@/services/api';
+import { isEnvBase, setBase } from '@/services/api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '@/stores/auth.store';
 import { TextField } from '@/components/ui/TextField';
@@ -79,12 +79,14 @@ export default function Login() {
               </View>
             </Link>
 
-            <Pressable
-              onPress={async () => { await setBase(null); router.replace('/(setup)/backend'); }}
-              style={{ marginTop: 16, alignSelf: 'center' }}
-            >
-              <Text style={styles.changeBackend}>⚙️  Can't reach backend? Change URL</Text>
-            </Pressable>
+            {isEnvBase() ? null : (
+              <Pressable
+                onPress={async () => { await setBase(null); router.replace('/(setup)/backend'); }}
+                style={{ marginTop: 16, alignSelf: 'center' }}
+              >
+                <Text style={styles.changeBackend}>⚙️  Can't reach backend? Change URL</Text>
+              </Pressable>
+            )}
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>

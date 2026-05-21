@@ -35,6 +35,7 @@ out/
 .env
 .env.local
 .env.*.local
+app/.env
 
 # Logs
 npm-debug.*

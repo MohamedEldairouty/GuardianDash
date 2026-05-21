@@ -3,17 +3,20 @@
 # How to deploy:
 #   1. Push this repo to GitHub.
 #   2. Sign in at https://dashboard.render.com (free, GitHub auth).
-#   3. Click "New" → "Blueprint" → connect your GuardianDash repo.
-#   4. Render reads this file and provisions a Web Service + a persistent disk
-#      for the SQLite database.
-#   5. After deploy you'll get a URL like
-#        https://guardiandash-api.onrender.com
-#      Set EXPO_PUBLIC_API_BASE to that in app/.env and you're done.
+#   3. New → Blueprint → connect your GuardianDash repo.
+#   4. Blueprint Path: backend/render.yaml
+#   5. Apply → wait ~5 min for the first build.
+#   6. You'll get a URL like https://guardiandash-api.onrender.com.
+#      Set EXPO_PUBLIC_API_BASE in app/.env to that URL and restart Expo.
 #
-# Free tier caveats:
-#   - Free instances sleep after 15 min of inactivity.
-#     First request after sleep takes ~30s while it spins back up.
-#   - 1 GB persistent disk is included free.
+# Free-tier caveats:
+#   - Free instances sleep after 15 min of inactivity (first request takes
+#     ~30s to wake up).
+#   - No persistent disk on free tier — SQLite lives in ephemeral storage.
+#     Practically this means the DB survives normal use but is reset whenever
+#     you push code (= a new container). For a demo this is fine; for a real
+#     product you'd upgrade to a Starter plan (~$7/mo) and re-add the disk,
+#     OR switch to managed Postgres (see docs/DEPLOY.md → "Going to Postgres").
 
 services:
   - type: web
@@ -30,9 +33,3 @@ services:
         value: 4000
       - key: GD_JWT_SECRET
         generateValue: true     # Render generates a strong random secret
-      - key: GD_DB_PATH
-        value: /data/guardiandash.db
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1

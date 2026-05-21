@@ -10,9 +10,13 @@ This guide deploys it to **Render.com** in ~5 minutes (free tier).
 
 - ✅ Free tier (no credit card required)
 - ✅ Auto-deploys from GitHub on every push
-- ✅ Persistent disk included (1 GB) — your SQLite DB survives restarts
 - ✅ Free HTTPS subdomain (`https://guardiandash-api.onrender.com`)
 - ⚠️ Free instances sleep after 15 min idle; first request after that takes ~30s
+- ⚠️ **No persistent disk on free tier.** SQLite lives in ephemeral storage —
+   it survives normal traffic but resets whenever you push new code. For a
+   demo that's fine; for production upgrade to **Starter ($7/mo)** + re-enable
+   the `disk:` block in `render.yaml`, **OR** switch to managed Postgres
+   (see "Going to Postgres" below)
 - ⚠️ Free Postgres expires after 90 days (but we're using SQLite, so n/a)
 
 Alternatives (if you outgrow Render free): **Railway** ($5/mo), **Fly.io**
@@ -82,6 +86,21 @@ Two ways to make the hardware also work without a laptop:
 
 The mobile app's UI is wireless-ready — it already speaks WebSocket and the
 LCD mirror updates from whatever telemetry source is hooked up.
+
+## Going to Postgres (if you want true persistence)
+
+For a production deployment, swap SQLite for managed Postgres. Cheapest
+options:
+
+| Provider | Free tier | Notes |
+|---|---|---|
+| **Neon** | 0.5 GB, always-on | Cleanest free Postgres in 2026 |
+| **Supabase** | 500 MB | Bundles auth + storage |
+| **Render Postgres** | Free for 90 days | Easy if you stay on Render |
+
+You'd need to swap `better-sqlite3` for `pg` in `db.js` and rewrite the
+queries (SQLite uses `?` placeholders, Postgres uses `$1, $2, …`). Not done
+in this commit — file an issue if/when you need it.
 
 ## Updating after code changes
 

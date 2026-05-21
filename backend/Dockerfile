@@ -13,8 +13,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json server.js db.js auth.js ./
-# SQLite DB lives on a mounted volume so it survives restarts.
-VOLUME ["/data"]
-ENV GD_DB_PATH=/data/guardiandash.db
+# SQLite DB lives in the working dir. On Render's free tier this is
+# ephemeral storage — data persists between requests but is reset on a
+# container restart (i.e. on each deploy). Upgrade to a paid plan and
+# mount a disk if you need persistence across deploys.
 EXPOSE 4000
 CMD ["node", "server.js"]

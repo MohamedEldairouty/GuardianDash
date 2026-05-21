@@ -48,6 +48,10 @@ yarn-error.*
 *.swp
 *.swo
 
+# Claude Code working files
+.claude/
+CLAUDE.md
+
 # OS
 .DS_Store
 Thumbs.db

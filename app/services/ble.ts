@@ -186,12 +186,17 @@ function parseLine(line: string) {
   };
   store.setFrame(frame);
 
-  // If the hardware tells us STATUS:ACCIDENT, fire the crash flow even if
-  // the app's local threshold hasn't tripped (e.g. firmware uses a different
-  // calibration). The app's existing crash detection still runs on top.
+  // If the hardware says STATUS:ACCIDENT but our local G measurement
+  // happens to be just under the app's threshold (e.g. timing jitter
+  // between samples), nudge the recorded G slightly above threshold so
+  // useCrashWatch picks it up. We don't dispatch the alert directly
+  // here — the hook in _layout.tsx is the single source of truth so
+  // crash detection works the same whether triggered by firmware STATUS
+  // or by the app's local threshold.
   if (strs.status === 'ACCIDENT' || strs.status === 'UNSAFE') {
-    // Hook for future: dispatch a crash event from here. For now, the
-    // dashboard reflects the elevated G and the user can read STATUS in
-    // the LCD mirror.
+    // Mark the frame as elevated. The crash-watch hook will see the
+    // bumped G value and fire the flow.
+    const bumped: TelemetryFrame = { ...frame, gForce: Math.max(frame.gForce, 1.51) };
+    store.setFrame(bumped);
   }
 }

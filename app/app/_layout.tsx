@@ -8,11 +8,15 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useContactsStore } from '@/stores/contacts.store';
 import { useTripsStore } from '@/stores/trips.store';
 import { useDeviceGPS } from '@/hooks/useDeviceGPS';
+import { useCrashWatch } from '@/hooks/useCrashWatch';
+import { useTripRecorder } from '@/hooks/useTripRecorder';
 import { getBase } from '@/services/api';
 import { colors } from '@/constants/colors';
 
 function GlobalEffects() {
   useDeviceGPS();
+  useCrashWatch();
+  useTripRecorder();
   return null;
 }
 

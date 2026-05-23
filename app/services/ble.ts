@@ -154,10 +154,10 @@ function handleData(chunk: string) {
 }
 
 function parseLine(line: string) {
-  // Pull both numeric and string fields out of the CSV.
-  // Examples:
-  //   G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE
-  //   G:2.10,X:-1.20,Y:0.40,Z:0.90,STATUS:ACCIDENT
+  // The firmware on the STM32 emits CSV lines like:
+  //   AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE        ← integer "centi-g"
+  //   G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE   ← legacy float format
+  // We support both. Detection: if any key is AX/AY/AZ we assume cents.
   const nums: Record<string, number> = {};
   const strs: Record<string, string> = {};
   for (const raw of line.split(',')) {
@@ -174,11 +174,21 @@ function parseLine(line: string) {
   }
   if (nums.g === undefined) return;
 
+  // Detect integer-cents vs float-g.
+  const isCents =
+    nums.ax !== undefined || nums.ay !== undefined || nums.az !== undefined || nums.g > 20;
+  const k = isCents ? 0.01 : 1;
+
+  const gForce = nums.g * k;
+  const ax = (nums.ax ?? nums.x ?? 0) * k;
+  const ay = (nums.ay ?? nums.y ?? 0) * k;
+  const az = (nums.az ?? nums.z ?? (isCents ? 100 : 1)) * k;
+
   const store = useTelemetryStore.getState();
   const frame: TelemetryFrame = {
     timestamp: Date.now(),
-    gForce: nums.g,
-    accel: { x: nums.x ?? 0, y: nums.y ?? 0, z: nums.z ?? 1 },
+    gForce,
+    accel: { x: ax, y: ay, z: az },
     gyro: { x: 0, y: 0, z: 0 },
     location: store.liveGps ?? { lat: 30.0444, lng: 31.2357 },
     heading: store.liveHeading ?? 0,
@@ -186,17 +196,15 @@ function parseLine(line: string) {
   };
   store.setFrame(frame);
 
-  // If the hardware says STATUS:ACCIDENT but our local G measurement
-  // happens to be just under the app's threshold (e.g. timing jitter
-  // between samples), nudge the recorded G slightly above threshold so
-  // useCrashWatch picks it up. We don't dispatch the alert directly
-  // here — the hook in _layout.tsx is the single source of truth so
-  // crash detection works the same whether triggered by firmware STATUS
-  // or by the app's local threshold.
+  // The firmware also latches STATUS:ACCIDENT after a crash — even when the
+  // current G has dropped back to normal. We respect that signal: nudge the
+  // stored G just above the lowest possible app threshold so useCrashWatch
+  // dispatches the alert. The 60-second cooldown in useCrashWatch keeps a
+  // sustained latched-accident stream from re-firing.
   if (strs.status === 'ACCIDENT' || strs.status === 'UNSAFE') {
-    // Mark the frame as elevated. The crash-watch hook will see the
-    // bumped G value and fire the flow.
-    const bumped: TelemetryFrame = { ...frame, gForce: Math.max(frame.gForce, 1.51) };
-    store.setFrame(bumped);
+    if (gForce < 1.51) {
+      const bumped: TelemetryFrame = { ...frame, gForce: 1.51 };
+      store.setFrame(bumped);
+    }
   }
 }

@@ -10,90 +10,121 @@
 #include "main.h"
 #include "i2c.h"
 #include "spi.h"
+#include "usart.h"
 #include "gpio.h"
+
 #include "i2c-lcd.h"
 #include "mpu6050.h"
-#include "usart.h"
+
 #include <stdio.h>
+#include <string.h>
 
 void SystemClock_Config(void);
 
 int main(void)
 {
   HAL_Init();
-
   SystemClock_Config();
 
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_SPI1_Init();
-  BtUart_Init();                      /* USART1 → HM-10 BLE module */
+  MX_USART1_UART_Init();
 
-  HAL_Delay(500);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // CAN CS high
 
-  BtUart_WriteString("\r\n[GuardianDash] Vehicle_BlackBox boot\r\n");
+  HAL_Delay(1000);
 
   lcd_init();
-  HAL_Delay(100);
+  HAL_Delay(200);
   lcd_clear();
 
   MPU6050_t MPU6050;
 
+  uint8_t accidentDetected = 0;
+
+  char line1[32];
+  char line2[32];
+  char bleMsg[128];
+
   lcd_put_cur(0, 0);
-  lcd_send_string("BLACKBOX READY");
+  lcd_send_string("BLACKBOX READY ");
   lcd_put_cur(1, 0);
-  lcd_send_string("MPU TESTING...");
+  lcd_send_string("BLE STARTING   ");
+
+  HAL_UART_Transmit(&huart1,
+                    (uint8_t *)"BLACKBOX READY\r\n",
+                    strlen("BLACKBOX READY\r\n"),
+                    100);
+
   HAL_Delay(1500);
   lcd_clear();
 
   if (MPU6050_Init(&hi2c1) == 0)
   {
     lcd_put_cur(0, 0);
-    lcd_send_string("MPU6050 READY ");
+    lcd_send_string("MPU READY      ");
     lcd_put_cur(1, 0);
-    lcd_send_string("MONITORING... ");
+    lcd_send_string("MONITORING     ");
   }
   else
   {
     lcd_put_cur(0, 0);
-    lcd_send_string("MPU6050 ERROR ");
+    lcd_send_string("MPU ERROR      ");
     lcd_put_cur(1, 0);
-    lcd_send_string("CHECK WIRING  ");
+    lcd_send_string("CHECK WIRING   ");
 
-    while (1)
-    {
-    }
+    HAL_UART_Transmit(&huart1,
+                      (uint8_t *)"MPU ERROR\r\n",
+                      strlen("MPU ERROR\r\n"),
+                      100);
+
+    while (1) {}
   }
 
   HAL_Delay(1500);
   lcd_clear();
 
-  char line1[32];
-  char line2[32];
-  char uart_buf[96];
-
   while (1)
   {
     MPU6050_Read_Accel(&hi2c1, &MPU6050);
 
-    /* ------------------------ LCD output (existing) ------------------------ */
-    int g_int = (int)(MPU6050.Gforce * 100);
-
-    snprintf(line1, sizeof(line1),
-             "G:%d.%02d        ",
-             g_int / 100,
-             g_int % 100);
+    int ax = (int)(MPU6050.Ax * 100);
+    int ay = (int)(MPU6050.Ay * 100);
+    int az = (int)(MPU6050.Az * 100);
+    int g  = (int)(MPU6050.Gforce * 100);
 
     if (MPU6050.Gforce > 1.50f)
     {
-      snprintf(line2, sizeof(line2),
-               "STATUS: UNSAFE  ");
+      accidentDetected = 1;
     }
-    else
+
+    if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET)
     {
-      snprintf(line2, sizeof(line2),
-               "STATUS: SAFE    ");
+      accidentDetected = 0;
+
+      lcd_put_cur(0, 0);
+      lcd_send_string("RESET DONE     ");
+      lcd_put_cur(1, 0);
+      lcd_send_string("MONITORING     ");
+
+      HAL_UART_Transmit(&huart1,
+                        (uint8_t *)"RESET DONE\r\n",
+                        strlen("RESET DONE\r\n"),
+                        100);
+
+      HAL_Delay(1000);
     }
+
+    snprintf(line1, sizeof(line1),
+             "AX:%d AY:%d    ",
+             ax,
+             ay);
+
+    snprintf(line2, sizeof(line2),
+             "AZ:%d G:%d     ",
+             az,
+             g);
 
     lcd_put_cur(0, 0);
     lcd_send_string(line1);
@@ -101,46 +132,25 @@ int main(void)
     lcd_put_cur(1, 0);
     lcd_send_string(line2);
 
-    /* ---------------------- UART output for the BLE link -------------------
-     * Format consumed by the GuardianDash app:
-     *     G:1.23,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE\r\n
-     * STATUS = SAFE when Gforce <= 1.50f, otherwise ACCIDENT.
-     *
-     * We avoid %f (which would require linking float printf) by emitting
-     * each value as <integer>.<two-digit-fraction>, with a leading '-' when
-     * needed.
-     */
-    int g_w   = (int)MPU6050.Gforce;
-    int g_f   = (int)((MPU6050.Gforce - (float)g_w) * 100.0f);
-    if (g_f < 0) g_f = -g_f;
+    if (accidentDetected)
+    {
+      snprintf(bleMsg, sizeof(bleMsg),
+               "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:ACCIDENT\r\n",
+               ax, ay, az, g);
+    }
+    else
+    {
+      snprintf(bleMsg, sizeof(bleMsg),
+               "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:SAFE\r\n",
+               ax, ay, az, g);
+    }
 
-    int ax_w  = (int)MPU6050.Ax;
-    int ax_f  = (int)((MPU6050.Ax - (float)ax_w) * 100.0f);
-    if (ax_f < 0) ax_f = -ax_f;
-    const char *ax_sign = (MPU6050.Ax < 0 && ax_w == 0) ? "-" : "";
+    HAL_UART_Transmit(&huart1,
+                      (uint8_t *)bleMsg,
+                      strlen(bleMsg),
+                      100);
 
-    int ay_w  = (int)MPU6050.Ay;
-    int ay_f  = (int)((MPU6050.Ay - (float)ay_w) * 100.0f);
-    if (ay_f < 0) ay_f = -ay_f;
-    const char *ay_sign = (MPU6050.Ay < 0 && ay_w == 0) ? "-" : "";
-
-    int az_w  = (int)MPU6050.Az;
-    int az_f  = (int)((MPU6050.Az - (float)az_w) * 100.0f);
-    if (az_f < 0) az_f = -az_f;
-    const char *az_sign = (MPU6050.Az < 0 && az_w == 0) ? "-" : "";
-
-    const char *status = (MPU6050.Gforce > 1.50f) ? "ACCIDENT" : "SAFE";
-
-    snprintf(uart_buf, sizeof(uart_buf),
-             "G:%d.%02d,X:%s%d.%02d,Y:%s%d.%02d,Z:%s%d.%02d,STATUS:%s\r\n",
-             g_w, g_f,
-             ax_sign, ax_w, ax_f,
-             ay_sign, ay_w, ay_f,
-             az_sign, az_w, az_f,
-             status);
-    BtUart_WriteString(uart_buf);
-
-    HAL_Delay(500);
+    HAL_Delay(700);
   }
 }
 
@@ -150,20 +160,12 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   __HAL_RCC_PWR_CLK_ENABLE();
-
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
-  RCC_OscInitStruct.OscillatorType =
-      RCC_OSCILLATORTYPE_HSI;
-
-  RCC_OscInitStruct.HSIState =
-      RCC_HSI_ON;
-
-  RCC_OscInitStruct.HSICalibrationValue =
-      RCC_HSICALIBRATION_DEFAULT;
-
-  RCC_OscInitStruct.PLL.PLLState =
-      RCC_PLL_NONE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
 
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -176,20 +178,12 @@ void SystemClock_Config(void)
       RCC_CLOCKTYPE_PCLK1 |
       RCC_CLOCKTYPE_PCLK2;
 
-  RCC_ClkInitStruct.SYSCLKSource =
-      RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  RCC_ClkInitStruct.AHBCLKDivider =
-      RCC_SYSCLK_DIV1;
-
-  RCC_ClkInitStruct.APB1CLKDivider =
-      RCC_HCLK_DIV1;
-
-  RCC_ClkInitStruct.APB2CLKDivider =
-      RCC_HCLK_DIV1;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct,
-                          FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -199,15 +193,11 @@ void Error_Handler(void)
 {
   __disable_irq();
 
-  while (1)
-  {
-  }
+  while (1) {}
 }
 
 #ifdef USE_FULL_ASSERT
-
 void assert_failed(uint8_t *file, uint32_t line)
 {
 }
-
 #endif

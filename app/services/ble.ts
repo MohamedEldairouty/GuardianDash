@@ -14,6 +14,7 @@ import { BleManager, type Device, type Subscription } from 'react-native-ble-plx
 import { PermissionsAndroid, Platform } from 'react-native';
 import { Buffer } from 'buffer';
 import { useTelemetryStore } from '@/stores/telemetry.store';
+import { useCrashStore } from '@/stores/crash.store';
 import type { TelemetryFrame } from '@/types/telemetry.types';
 
 const SERVICE_UUID        = '0000ffe0-0000-1000-8000-00805f9b34fb';
@@ -24,6 +25,7 @@ let connectedDevice: Device | null = null;
 let monitorSub: Subscription | null = null;
 let disconnectSub: Subscription | null = null;
 let rxBuffer = '';
+let lastSeenStatus: 'SAFE' | 'ACCIDENT' | null = null;
 
 function mgr(): BleManager {
   if (!manager) manager = new BleManager();
@@ -130,6 +132,7 @@ function cleanup() {
   disconnectSub?.remove(); disconnectSub = null;
   connectedDevice = null;
   rxBuffer = '';
+  lastSeenStatus = null;
 }
 
 export function isConnected(): boolean {
@@ -196,15 +199,14 @@ function parseLine(line: string) {
   };
   store.setFrame(frame);
 
-  // The firmware also latches STATUS:ACCIDENT after a crash — even when the
-  // current G has dropped back to normal. We respect that signal: nudge the
-  // stored G just above the lowest possible app threshold so useCrashWatch
-  // dispatches the alert. The 60-second cooldown in useCrashWatch keeps a
-  // sustained latched-accident stream from re-firing.
-  if (strs.status === 'ACCIDENT' || strs.status === 'UNSAFE') {
-    if (gForce < 1.51) {
-      const bumped: TelemetryFrame = { ...frame, gForce: 1.51 };
-      store.setFrame(bumped);
-    }
+  // The firmware latches STATUS:ACCIDENT after a crash — every subsequent
+  // message carries it until the PC13 reset button is pressed. We only fire
+  // the app's crash flow on the SAFE→ACCIDENT transition, so the dashboard
+  // keeps showing the real live G value instead of being stuck at a bump.
+  const currentStatus: 'SAFE' | 'ACCIDENT' =
+    strs.status === 'ACCIDENT' || strs.status === 'UNSAFE' ? 'ACCIDENT' : 'SAFE';
+  if (currentStatus === 'ACCIDENT' && lastSeenStatus !== 'ACCIDENT') {
+    useCrashStore.getState().setPendingHardwareAccident(true);
   }
+  lastSeenStatus = currentStatus;
 }

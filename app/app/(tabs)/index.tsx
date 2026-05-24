@@ -9,6 +9,7 @@ import { SpeedGauge } from '@/components/dashboard/SpeedGauge';
 import { GForceBar } from '@/components/dashboard/GForceBar';
 import { StatusPill } from '@/components/dashboard/StatusPill';
 import { LcdMirror } from '@/components/dashboard/LcdMirror';
+import { TripRecorder } from '@/components/dashboard/TripRecorder';
 import { StatCard } from '@/components/ui/StatCard';
 import { LogoMark } from '@/components/ui/Logo';
 import { colors } from '@/constants/colors';
@@ -41,17 +42,22 @@ export default function Dashboard() {
         </View>
 
         {!hasData ? (
-          <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.waitingCard}>
-            <Text style={styles.waitingEmoji}>🛰️</Text>
-            <Text style={styles.waitingTitle}>Waiting for Black Box</Text>
-            <Text style={styles.waitingText}>
-              Power on your Vehicle_BlackBox and pair it via Bluetooth.{'\n'}
-              Telemetry will appear here in real time.
-            </Text>
-            <Pressable style={styles.pairBtn} onPress={() => router.push('/device/ble')}>
-              <Text style={styles.pairBtnText}>📡  Pair Black Box</Text>
-            </Pressable>
-          </Animated.View>
+          <>
+            <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.waitingCard}>
+              <Text style={styles.waitingEmoji}>🛰️</Text>
+              <Text style={styles.waitingTitle}>Waiting for Black Box</Text>
+              <Text style={styles.waitingText}>
+                Power on your Vehicle_BlackBox and pair it via Bluetooth.{'\n'}
+                Telemetry will appear here in real time.
+              </Text>
+              <Pressable style={styles.pairBtn} onPress={() => router.push('/device/ble')}>
+                <Text style={styles.pairBtnText}>📡  Pair Black Box</Text>
+              </Pressable>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(150).duration(500).springify()}>
+              <TripRecorder />
+            </Animated.View>
+          </>
         ) : (
           <>
             <Animated.View entering={FadeInDown.duration(500).springify()}>
@@ -70,6 +76,10 @@ export default function Dashboard() {
               <StatCard label="ACCEL X" value={frame.accel.x.toFixed(2)} unit="g" style={{ marginRight: 6 }} />
               <StatCard label="ACCEL Y" value={frame.accel.y.toFixed(2)} unit="g" style={{ marginHorizontal: 6 }} />
               <StatCard label="ACCEL Z" value={frame.accel.z.toFixed(2)} unit="g" style={{ marginLeft: 6 }} />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(260).duration(500).springify()}>
+              <TripRecorder />
             </Animated.View>
           </>
         )}

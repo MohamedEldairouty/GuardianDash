@@ -1,7 +1,8 @@
 /**
- * Watches incoming telemetry frames and automatically fires the crash flow
- * when G-force exceeds the configured threshold (or when the firmware
- * explicitly reports STATUS:ACCIDENT / UNSAFE).
+ * Watches incoming telemetry frames and fires the crash flow when:
+ *   • G-force exceeds the configured threshold, OR
+ *   • The firmware reports a SAFE→ACCIDENT transition via STATUS field
+ *     (signaled through crashStore.pendingHardwareAccident).
  *
  * Mount once at the app root (in _layout.tsx).
  */
@@ -13,7 +14,7 @@ import { useSettingsStore } from '@/stores/settings.store';
 import * as haptics from '@/services/haptics';
 import type { CrashEvent, CrashSeverity } from '@/types/crash.types';
 
-/** Minimum gap between two crash alerts, so a sustained shake doesn't fire 10 times in a row. */
+/** Minimum gap between two crash alerts so noise doesn't fire repeatedly. */
 const COOLDOWN_MS = 60_000;
 
 function severityFor(g: number, threshold: number): CrashSeverity {
@@ -30,29 +31,37 @@ export function useCrashWatch() {
   const threshold = useSettingsStore((s) => s.threshold);
   const active = useCrashStore((s) => s.active);
   const trigger = useCrashStore((s) => s.trigger);
+  const pending = useCrashStore((s) => s.pendingHardwareAccident);
+  const setPending = useCrashStore((s) => s.setPendingHardwareAccident);
 
   useEffect(() => {
-    if (!latest) return;
-    if (active) return;                   // alert already open — don't stack
-    if (latest.gForce <= threshold) return;
+    if (active) return;                       // alert already open — don't stack
+    const overLocalThreshold = !!latest && latest.gForce > threshold;
+    if (!overLocalThreshold && !pending) return;
 
     const now = Date.now();
-    if (now - lastFiredRef.current < COOLDOWN_MS) return;
+    if (now - lastFiredRef.current < COOLDOWN_MS) {
+      // Still clear the hardware flag so it doesn't re-trip after the cooldown.
+      if (pending) setPending(false);
+      return;
+    }
     lastFiredRef.current = now;
 
+    const peakG = latest?.gForce ?? threshold * 1.5;
     const event: CrashEvent = {
       id: `crash_${now}`,
       tripId: 'current',
       timestamp: now,
-      location: liveGps ?? latest.location,
-      peakG: latest.gForce,
-      severity: severityFor(latest.gForce, threshold),
+      location: liveGps ?? latest?.location ?? { lat: 30.0444, lng: 31.2357 },
+      peakG,
+      severity: severityFor(peakG, threshold),
       dismissed: false,
       snapshot: [],
     };
 
     haptics.crash();
     trigger(event, recent);
+    if (pending) setPending(false);
     router.push('/alert');
-  }, [latest, threshold, active, trigger, recent, liveGps]);
+  }, [latest, threshold, active, trigger, recent, liveGps, pending, setPending]);
 }

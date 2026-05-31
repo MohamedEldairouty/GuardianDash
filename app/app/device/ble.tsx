@@ -18,6 +18,9 @@ export default function BlePair() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const connected = useTelemetryStore((s) => s.hardwareConnected);
+  const bytesReceived = useTelemetryStore((s) => s.bytesReceived);
+  const framesParsed = useTelemetryStore((s) => s.framesParsed);
+  const lastLine = useTelemetryStore((s) => s.lastLine);
 
   const enrich = (d: ble.ScanResult): Device => ({
     ...d,
@@ -96,6 +99,24 @@ export default function BlePair() {
           </Pressable>
         ) : null}
       </View>
+
+      {connected ? (
+        <View style={styles.diag}>
+          <Text style={styles.diagLabel}>📥 LINK DIAGNOSTICS</Text>
+          <View style={styles.diagRow}>
+            <Text style={styles.diagItem}>{bytesReceived} bytes</Text>
+            <Text style={styles.diagItem}>{framesParsed} frames parsed</Text>
+          </View>
+          <Text style={styles.diagSub} numberOfLines={2}>
+            {lastLine ? `Last line: ${lastLine}` : 'Waiting for first line…'}
+          </Text>
+          {bytesReceived > 0 && framesParsed === 0 ? (
+            <Text style={styles.diagError}>
+              ⚠️  Receiving data but parser doesn't recognize the format. Rebuild the APK with the latest code.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.scanRow}>
         <Text style={styles.scanLabel}>
@@ -180,6 +201,20 @@ const styles = StyleSheet.create({
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   statusText: { color: colors.text, fontSize: 13, fontWeight: '600', flex: 1 },
   disconnectLink: { color: colors.danger, fontSize: 12, fontWeight: '700' },
+  diag: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  diagLabel: { color: colors.textMuted, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' },
+  diagRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  diagItem: { color: colors.text, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  diagSub: { color: colors.textMuted, fontSize: 11, marginTop: 6, fontFamily: 'monospace' },
+  diagError: { color: colors.warning, fontSize: 11, marginTop: 6, fontWeight: '700' },
   scanRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

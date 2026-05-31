@@ -12,11 +12,18 @@ interface TelemetryState {
   liveHeading: number | null;
   liveSpeedKph: number | null;
   hardwareConnected: boolean;
+  /** Total bytes received from the BLE link since pairing. Diagnostic. */
+  bytesReceived: number;
+  /** Total CSV lines successfully parsed (used to spot parser silent failures). */
+  framesParsed: number;
+  /** Last raw line received — useful for debugging unknown formats. */
+  lastLine: string | null;
   setFrame: (frame: TelemetryFrame) => void;
   setStatus: (status: DeviceStatus) => void;
   setHardwareConnected: (connected: boolean) => void;
   setLocation: (loc: { lat: number; lng: number }, heading: number | null, speedMps: number | null) => void;
   resetPeak: () => void;
+  noteBytesReceived: (n: number, lastLine?: string) => void;
 }
 
 export const useTelemetryStore = create<TelemetryState>((set) => ({
@@ -28,6 +35,9 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
   liveHeading: null,
   liveSpeedKph: null,
   hardwareConnected: false,
+  bytesReceived: 0,
+  framesParsed: 0,
+  lastLine: null,
 
   setFrame: (frame) =>
     set((s) => {
@@ -47,8 +57,15 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
         recent,
         status: s.hardwareConnected ? 'connected' : 'searching',
         peakGRecent: Math.max(s.peakGRecent, merged.gForce),
+        framesParsed: s.framesParsed + 1,
       };
     }),
+
+  noteBytesReceived: (n, lastLine) =>
+    set((s) => ({
+      bytesReceived: s.bytesReceived + n,
+      lastLine: lastLine ?? s.lastLine,
+    })),
 
   setStatus: (status) => set({ status }),
   setHardwareConnected: (hardwareConnected) =>

@@ -149,11 +149,15 @@ export function connectedDeviceName(): string | null {
 
 function handleData(chunk: string) {
   rxBuffer += chunk;
+  useTelemetryStore.getState().noteBytesReceived(chunk.length);
   let nl;
   while ((nl = rxBuffer.indexOf('\n')) >= 0) {
     const line = rxBuffer.slice(0, nl).trim();
     rxBuffer = rxBuffer.slice(nl + 1);
-    if (line) parseLine(line);
+    if (line) {
+      useTelemetryStore.getState().noteBytesReceived(0, line);
+      parseLine(line);
+    }
   }
 }
 

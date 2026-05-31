@@ -18,8 +18,16 @@ import { useCrashStore } from '@/stores/crash.store';
 import { useWarningsStore } from '@/stores/warnings.store';
 import type { TelemetryFrame } from '@/types/telemetry.types';
 
+/** Standard HM-10 service / characteristic. */
 const SERVICE_UUID        = '0000ffe0-0000-1000-8000-00805f9b34fb';
 const CHARACTERISTIC_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
+
+/** Some HM-10 clones expose the UART pipe under different UUIDs. */
+const FALLBACK_CHARACTERISTIC_UUIDS = [
+  '0000ffe2-0000-1000-8000-00805f9b34fb',
+  '0000ffe3-0000-1000-8000-00805f9b34fb',
+  '0000fff1-0000-1000-8000-00805f9b34fb',
+];
 
 let manager: BleManager | null = null;
 let connectedDevice: Device | null = null;
@@ -93,24 +101,74 @@ export async function connect(deviceId: string): Promise<void> {
   const m = mgr();
   await disconnect();
 
-  const device = await m.connectToDevice(deviceId, { autoConnect: false, timeout: 8000 });
-  await device.discoverAllServicesAndCharacteristics();
-  connectedDevice = device;
+  let device = await m.connectToDevice(deviceId, { autoConnect: false, timeout: 10000 });
 
+  // Most Android devices default MTU to 23 bytes, which fragments our
+  // ~120-byte firmware lines awkwardly. Bump it before service discovery.
+  try {
+    device = await device.requestMTU(247);
+  } catch (e: any) {
+    console.warn('[ble] MTU bump failed (continuing at default):', e?.message ?? e);
+  }
+
+  await device.discoverAllServicesAndCharacteristics();
+
+  // Many HM-10 clones need a brief settling delay before they accept the
+  // CCCD descriptor write that enables notifications. Skip and the
+  // subscribe silently does nothing.
+  await new Promise((r) => setTimeout(r, 400));
+
+  connectedDevice = device;
   rxBuffer = '';
-  monitorSub = device.monitorCharacteristicForService(
-    SERVICE_UUID,
-    CHARACTERISTIC_UUID,
-    (err, char) => {
-      if (err) {
-        console.warn('[ble] monitor error:', err.message);
-        return;
+
+  const onNotification = (err: any, char: any) => {
+    if (err) {
+      console.warn('[ble] monitor error:', err.message);
+      return;
+    }
+    if (!char?.value) return;
+    const chunk = Buffer.from(char.value, 'base64').toString('utf-8');
+    handleData(chunk);
+  };
+
+  // 1. Try the standard HM-10 characteristic.
+  let subscribed = false;
+  try {
+    monitorSub = device.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHARACTERISTIC_UUID,
+      onNotification,
+    );
+    subscribed = true;
+  } catch (e: any) {
+    console.warn('[ble] standard FFE1 subscribe failed:', e?.message ?? e);
+  }
+
+  // 2. Fallback: enumerate every characteristic the device exposes and
+  // subscribe to the first one that supports notifications. Covers HM-10
+  // clones that use a non-standard UUID.
+  if (!subscribed) {
+    const services = await device.services();
+    outer: for (const svc of services) {
+      const chars = await svc.characteristics();
+      for (const c of chars) {
+        if (c.isNotifiable || c.isIndicatable) {
+          try {
+            monitorSub = c.monitor(onNotification);
+            console.log(`[ble] subscribed to ${svc.uuid} / ${c.uuid}`);
+            subscribed = true;
+            break outer;
+          } catch (e: any) {
+            console.warn(`[ble] subscribe to ${c.uuid} failed:`, e?.message ?? e);
+          }
+        }
       }
-      if (!char?.value) return;
-      const chunk = Buffer.from(char.value, 'base64').toString('utf-8');
-      handleData(chunk);
-    },
-  );
+    }
+  }
+
+  if (!subscribed) {
+    throw new Error('No notifiable characteristic found on device');
+  }
 
   disconnectSub = device.onDisconnected(() => {
     useTelemetryStore.getState().setHardwareConnected(false);

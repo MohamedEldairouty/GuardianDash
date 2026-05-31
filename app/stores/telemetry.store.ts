@@ -69,7 +69,14 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
 
   setStatus: (status) => set({ status }),
   setHardwareConnected: (hardwareConnected) =>
-    set({ hardwareConnected, status: hardwareConnected ? 'connected' : 'searching' }),
+    set((s) => ({
+      hardwareConnected,
+      status: hardwareConnected ? 'connected' : 'searching',
+      // Reset diagnostics each time we (re)connect so users see live numbers.
+      bytesReceived: hardwareConnected ? 0 : s.bytesReceived,
+      framesParsed: hardwareConnected ? 0 : s.framesParsed,
+      lastLine: hardwareConnected ? null : s.lastLine,
+    })),
 
   setLocation: (loc, heading, speedMps) =>
     set({

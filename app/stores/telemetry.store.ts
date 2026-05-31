@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { DeviceStatus, TelemetryFrame } from '@/types/telemetry.types';
 
-const BUFFER_SIZE = 60;
+const BUFFER_SIZE = 200; // ~20s of history at 10 Hz — fuels the Signals tab
 
 interface TelemetryState {
   latest: TelemetryFrame | null;

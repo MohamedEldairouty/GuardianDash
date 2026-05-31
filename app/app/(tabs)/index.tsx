@@ -10,6 +10,7 @@ import { GForceBar } from '@/components/dashboard/GForceBar';
 import { StatusPill } from '@/components/dashboard/StatusPill';
 import { LcdMirror } from '@/components/dashboard/LcdMirror';
 import { TripRecorder } from '@/components/dashboard/TripRecorder';
+import { WarningBanner } from '@/components/dashboard/WarningBanner';
 import { StatCard } from '@/components/ui/StatCard';
 import { LogoMark } from '@/components/ui/Logo';
 import { colors } from '@/constants/colors';
@@ -40,6 +41,8 @@ export default function Dashboard() {
           </View>
           <StatusPill status={status} />
         </View>
+
+        <WarningBanner />
 
         {!hasData ? (
           <>

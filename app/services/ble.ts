@@ -15,6 +15,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import { Buffer } from 'buffer';
 import { useTelemetryStore } from '@/stores/telemetry.store';
 import { useCrashStore } from '@/stores/crash.store';
+import { useWarningsStore } from '@/stores/warnings.store';
 import type { TelemetryFrame } from '@/types/telemetry.types';
 
 const SERVICE_UUID        = '0000ffe0-0000-1000-8000-00805f9b34fb';
@@ -25,7 +26,7 @@ let connectedDevice: Device | null = null;
 let monitorSub: Subscription | null = null;
 let disconnectSub: Subscription | null = null;
 let rxBuffer = '';
-let lastSeenStatus: 'SAFE' | 'ACCIDENT' | null = null;
+let lastSeenStatus: string | null = null;
 
 function mgr(): BleManager {
   if (!manager) manager = new BleManager();
@@ -157,10 +158,10 @@ function handleData(chunk: string) {
 }
 
 function parseLine(line: string) {
-  // The firmware on the STM32 emits CSV lines like:
-  //   AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE        ← integer "centi-g"
-  //   G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE   ← legacy float format
-  // We support both. Detection: if any key is AX/AY/AZ we assume cents.
+  // The firmware emits two formats — we support both:
+  //   T:1234,AX:5,AY:-1,AZ:100,G:104,HALL:1,PULSE:42,PWM:45,EVENT:NORMAL_DRIVE,ALERT:NONE  ← latest
+  //   AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE                                                  ← previous
+  //   G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE                                             ← legacy floats
   const nums: Record<string, number> = {};
   const strs: Record<string, string> = {};
   for (const raw of line.split(',')) {
@@ -177,7 +178,7 @@ function parseLine(line: string) {
   }
   if (nums.g === undefined) return;
 
-  // Detect integer-cents vs float-g.
+  // Integer-cents vs float-g detection.
   const isCents =
     nums.ax !== undefined || nums.ay !== undefined || nums.az !== undefined || nums.g > 20;
   const k = isCents ? 0.01 : 1;
@@ -196,17 +197,32 @@ function parseLine(line: string) {
     location: store.liveGps ?? { lat: 30.0444, lng: 31.2357 },
     heading: store.liveHeading ?? 0,
     speedKph: store.liveSpeedKph ?? 0,
+    hallState: nums.hall !== undefined ? ((nums.hall ? 1 : 0) as 0 | 1) : undefined,
+    pulseCount: nums.pulse,
+    pwm: nums.pwm,
+    event: strs.event,
+    alert: strs.alert ?? strs.status,
   };
   store.setFrame(frame);
 
-  // The firmware latches STATUS:ACCIDENT after a crash — every subsequent
-  // message carries it until the PC13 reset button is pressed. We only fire
-  // the app's crash flow on the SAFE→ACCIDENT transition, so the dashboard
-  // keeps showing the real live G value instead of being stuck at a bump.
-  const currentStatus: 'SAFE' | 'ACCIDENT' =
-    strs.status === 'ACCIDENT' || strs.status === 'UNSAFE' ? 'ACCIDENT' : 'SAFE';
-  if (currentStatus === 'ACCIDENT' && lastSeenStatus !== 'ACCIDENT') {
-    useCrashStore.getState().setPendingHardwareAccident(true);
+  // Alert / status edge detection. The firmware latches ACCIDENT / specific
+  // ALERT values; we only react on transitions so the UI doesn't spam.
+  const currentAlert =
+    (strs.alert && strs.alert !== 'NONE') ? strs.alert
+    : (strs.status === 'ACCIDENT' || strs.status === 'UNSAFE') ? 'ACCIDENT'
+    : 'NONE';
+
+  if (currentAlert !== lastSeenStatus) {
+    if (currentAlert === 'HARSH_BRAKE' || currentAlert === 'HARSH_ACCEL') {
+      useWarningsStore.getState().push({
+        type: currentAlert,
+        timestamp: Date.now(),
+        gForce,
+        location: store.liveGps ?? null,
+      });
+    } else if (currentAlert === 'ACCIDENT' || currentAlert === 'CRASH') {
+      useCrashStore.getState().setPendingHardwareAccident(true);
+    }
   }
-  lastSeenStatus = currentStatus;
+  lastSeenStatus = currentAlert;
 }

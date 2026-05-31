@@ -36,8 +36,12 @@ export function useCrashWatch() {
 
   useEffect(() => {
     if (active) return;                       // alert already open — don't stack
-    const overLocalThreshold = !!latest && latest.gForce > threshold;
-    if (!overLocalThreshold && !pending) return;
+    // We reserve the full-screen crash alert for truly severe events.
+    // HARSH_BRAKE / HARSH_ACCEL from the firmware go to the warning banner
+    // (handled separately by the WarningBanner component).
+    const SEVERE_MULTIPLIER = 1.7;
+    const severeByG = !!latest && latest.gForce > threshold * SEVERE_MULTIPLIER;
+    if (!severeByG && !pending) return;
 
     const now = Date.now();
     if (now - lastFiredRef.current < COOLDOWN_MS) {

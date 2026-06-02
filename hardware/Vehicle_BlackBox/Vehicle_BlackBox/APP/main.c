@@ -1,12 +1,13 @@
 /*
  *  GuardianDash — Vehicle_BlackBox firmware (final)
  *  ------------------------------------------------
- *  Uses the WORKING UART module from Inc/MCAL/UART/ that proved HELLO
- *  prints to the phone. Adds MPU6050 read, LCD output, motor control,
- *  and sends BOTH CSV formats so every APK version parses them.
+ *  Uses ONLY the functions actually exposed in this project's headers:
+ *    LCD.h  : LCD_Init, LCD_Clear, LCD_SetCursor, LCD_SendString
+ *    Timer.h: (no delay — we use an inline busy-loop)
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "../Inc/Common/Std_Types.h"
 #include "../Inc/MCAL/DIO/DIO.h"
 #include "../Inc/MCAL/RCC/RCC.h"
@@ -16,7 +17,6 @@
 #include "../Drivers/LCD/LCD.h"
 #include "../Drivers/MPU6050/MPU6050.h"
 
-/* ============================================================ */
 #define CRASH_THRESHOLD_CG 150       /* 1.50 g */
 
 #define ENA PIN_12
@@ -28,6 +28,14 @@
 #define MOTOR_PORT PORT_B
 
 typedef struct { int16 ax, ay, az; int16 gx, gy, gz; } IMU_Data;
+
+/* Busy-loop delay since Timer_DelayMs isn't in this Timer.h. */
+static void delay_ms(uint32 ms){
+    volatile uint32 i;
+    while (ms--) {
+        for (i = 0; i < 4000; i++) { __asm__("nop"); }
+    }
+}
 
 static void Car_Forward(void){
     Dio_WriteChannel(MOTOR_PORT, ENA, STD_HIGH);
@@ -47,7 +55,7 @@ static void Car_Stop(void){
     Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
 }
 
-/* Integer sqrt for the magnitude calculation. */
+/* Integer sqrt for magnitude. */
 static uint32 isqrt32(uint32 n){
     if (n == 0) return 0;
     uint32 x = n;
@@ -65,7 +73,7 @@ static void fmt_signed(char *out, int v){
 }
 
 int main(void){
-    /* --- Motor port up first --- */
+    /* Motor port */
     RCC_EnableGPIO(MOTOR_PORT);
     ApplyDir(MOTOR_PORT, ENA, DIR_OUTPUT);
     ApplyDir(MOTOR_PORT, IN1, DIR_OUTPUT);
@@ -74,7 +82,7 @@ int main(void){
     ApplyDir(MOTOR_PORT, IN3, DIR_OUTPUT);
     ApplyDir(MOTOR_PORT, IN4, DIR_OUTPUT);
 
-    /* --- UART first (using your friend's working module) --- */
+    /* UART first so the boot trace is visible. */
     UART_Init();
     UART_SendString("\r\nBLACKBOX BOOT\r\n");
 
@@ -98,6 +106,7 @@ int main(void){
     Car_Forward();
 
     char buf[160];
+    char lcd_line[20];
     char gs[10], xs[10], ys[10], zs[10];
     uint8 crashLatched = 0;
 
@@ -112,7 +121,6 @@ int main(void){
         uint32 magsq = (uint32)(ax32*ax32) + (uint32)(ay32*ay32) + (uint32)(az32*az32);
         uint32 mag   = isqrt32(magsq);
 
-        /* Convert to centi-g (1 g = 16384 raw LSB at ±2 g range). */
         int g_cg  = (int)((mag * 100U) / 16384U);
         int ax_cg = (int)((ax32 * 100) / 16384);
         int ay_cg = (int)((ay32 * 100) / 16384);
@@ -121,7 +129,7 @@ int main(void){
         if (g_cg > CRASH_THRESHOLD_CG) crashLatched = 1;
         uint8 isCrash = crashLatched;
 
-        /* LCD */
+        /* LCD line 1: status */
         LCD_SetCursor(0,0);
         if (isCrash){
             LCD_SendString("CRASH: YES     ");
@@ -130,14 +138,15 @@ int main(void){
             LCD_SendString("CRASH: NO      ");
             Car_Forward();
         }
+
+        /* LCD line 2: G value */
         LCD_SetCursor(1,0);
-        LCD_SendString("G:");
-        LCD_SendNumber((uint32)g_cg);
-        LCD_SendString(" cg      ");
+        snprintf(lcd_line, sizeof(lcd_line), "G:%d cg        ", g_cg);
+        LCD_SendString(lcd_line);
 
         const char *status = isCrash ? "CRASH" : "SAFE";
 
-        /* === Format A: legacy floats (G:1.04,X:0.05,...) === */
+        /* Format A: legacy floats — G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE */
         fmt_signed(gs, g_cg);
         fmt_signed(xs, ax_cg);
         fmt_signed(ys, ay_cg);
@@ -147,12 +156,12 @@ int main(void){
                  gs, xs, ys, zs, status);
         UART_SendString(buf);
 
-        /* === Format B: integer cents (AX:5,AY:-1,AZ:100,G:104,...) === */
+        /* Format B: integer cents — AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE */
         snprintf(buf, sizeof(buf),
                  "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:%s\r\n",
                  ax_cg, ay_cg, az_cg, g_cg, status);
         UART_SendString(buf);
 
-        Timer_DelayMs(150);
+        delay_ms(150);
     }
 }

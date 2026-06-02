@@ -6,7 +6,7 @@
 #define TIM5_BASE 0x40000C00UL
 
 #define TIM_CR1_OFFSET 0x00
-#define TIM_SR_OFFSET  0x10
+#define TIM_SR_OFFSET 0x10
 #define TIM_PSC_OFFSET 0x28
 #define TIM_ARR_OFFSET 0x2C
 #define TIM_CNT_OFFSET 0x24
@@ -29,27 +29,15 @@ uint32 GetTimerAddress(uint8 TimerId){
 
 void Timer_Init(Timer_ConfigType ConfigPtr){
     uint32 timer = GetTimerAddress(ConfigPtr.TimerId);
-    TIM_CR1(timer) &= ~1;
+    TIM_CR1(timer) &= ~1; // disable
     TIM_PSC(timer) = ConfigPtr.Prescaler;
     TIM_ARR(timer) = ConfigPtr.AutoReload;
     TIM_CNT(timer) = 0;
-    TIM_CR1(timer) |= 1;
+    TIM_CR1(timer) |= 1; // enable
 }
 
 void Timer_Start(uint8 TimerId){ TIM_CR1(GetTimerAddress(TimerId)) |= 1; }
 void Timer_Stop(uint8 TimerId){ TIM_CR1(GetTimerAddress(TimerId)) &= ~1; }
+
 uint8 Timer_GetFlag(uint8 TimerId){ return (TIM_SR(GetTimerAddress(TimerId)) & 1); }
 void Timer_ClearFlag(uint8 TimerId){ TIM_SR(GetTimerAddress(TimerId)) &= ~1; }
-
-void Timer_DelayUs(uint32 us){
-    volatile uint32 i;
-    while(us--){
-        for(i=0;i<16;i++);
-    }
-}
-
-void Timer_DelayMs(uint32 ms){
-    while(ms--){
-        Timer_DelayUs(1000);
-    }
-}

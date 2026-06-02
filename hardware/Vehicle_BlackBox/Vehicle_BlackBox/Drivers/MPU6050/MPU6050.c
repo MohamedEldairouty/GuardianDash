@@ -3,7 +3,7 @@
 #define MPU_ADDR 0x68
 
 void MPU6050_Init(void){
-    I2C_Write(MPU_ADDR,0x6B,0x00); // Wake up device
+    I2C_Write(MPU_ADDR,0x6B,0x00);
 }
 
 void MPU6050_Read(int16* ax,int16* ay,int16* az,int16* gx,int16* gy,int16* gz){

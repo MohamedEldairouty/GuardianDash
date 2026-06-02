@@ -46,13 +46,13 @@ void ApplyDir(uint8 portName, uint8 pinNumber , Dio_Direction pinDir){
 
 uint8 Dio_ReadChannel(uint8 Port, Dio_ChannelType ChannelId){
     uint32 port = GetPortAddress(Port);
-    return ((GPIO_IDR(port) & (1 << ChannelId)) >> ChannelId);
+    return GET_BIT(GPIO_IDR(port), ChannelId);
 }
 
 void Dio_WriteChannel(uint8 PortId, Dio_ChannelType ChannelId, Dio_PortLevelType Level){
     uint32 port = GetPortAddress(PortId);
-    if(Level == STD_HIGH) GPIO_BSRR(port) |= (1 << ChannelId);
-    else GPIO_BSRR(port) |= (1 << (ChannelId + 16));
+    if(Level == STD_HIGH) SET_BIT(GPIO_BSRR(port), ChannelId);
+    else SET_BIT(GPIO_BSRR(port), ChannelId+16);
 }
 
 void Dio_FlipChannel(uint8 PortId, Dio_ChannelType ChannelId){

@@ -1,9 +1,5 @@
 /*
- *  GuardianDash — Vehicle_BlackBox firmware (final)
- *  ------------------------------------------------
- *  Uses ONLY the functions actually exposed in this project's headers:
- *    LCD.h  : LCD_Init, LCD_Clear, LCD_SetCursor, LCD_SendString
- *    Timer.h: (no delay — we use an inline busy-loop)
+ *  GuardianDash — Vehicle_BlackBox firmware (with I2C diagnostic)
  */
 
 #include <stdio.h>
@@ -17,7 +13,7 @@
 #include "../Drivers/LCD/LCD.h"
 #include "../Drivers/MPU6050/MPU6050.h"
 
-#define CRASH_THRESHOLD_CG 150       /* 1.50 g */
+#define CRASH_THRESHOLD_CG 150
 
 #define ENA PIN_12
 #define IN1 PIN_13
@@ -29,12 +25,9 @@
 
 typedef struct { int16 ax, ay, az; int16 gx, gy, gz; } IMU_Data;
 
-/* Busy-loop delay since Timer_DelayMs isn't in this Timer.h. */
 static void delay_ms(uint32 ms){
     volatile uint32 i;
-    while (ms--) {
-        for (i = 0; i < 4000; i++) { __asm__("nop"); }
-    }
+    while (ms--) for (i = 0; i < 4000; i++) __asm__("nop");
 }
 
 static void Car_Forward(void){
@@ -55,7 +48,6 @@ static void Car_Stop(void){
     Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
 }
 
-/* Integer sqrt for magnitude. */
 static uint32 isqrt32(uint32 n){
     if (n == 0) return 0;
     uint32 x = n;
@@ -64,7 +56,6 @@ static uint32 isqrt32(uint32 n){
     return x;
 }
 
-/* Build "1.04" / "-0.05" style strings from a centi-g integer. */
 static void fmt_signed(char *out, int v){
     int w = v / 100;
     int f = v % 100; if (f < 0) f = -f;
@@ -73,7 +64,6 @@ static void fmt_signed(char *out, int v){
 }
 
 int main(void){
-    /* Motor port */
     RCC_EnableGPIO(MOTOR_PORT);
     ApplyDir(MOTOR_PORT, ENA, DIR_OUTPUT);
     ApplyDir(MOTOR_PORT, IN1, DIR_OUTPUT);
@@ -82,15 +72,30 @@ int main(void){
     ApplyDir(MOTOR_PORT, IN3, DIR_OUTPUT);
     ApplyDir(MOTOR_PORT, IN4, DIR_OUTPUT);
 
-    /* UART first so the boot trace is visible. */
     UART_Init();
     UART_SendString("\r\nBLACKBOX BOOT\r\n");
 
     I2C_Init();
     UART_SendString("I2C OK\r\n");
 
+    /* ===== DIAGNOSTIC: read MPU WHO_AM_I (register 0x75) =====
+     *   0x68 → MPU6050 responsive, I2C works
+     *   0x00 → SDA stuck low or nothing responding
+     *   0xFF → SDA pulled high but no ACK from device
+     *   anything else → noise / wrong address
+     */
+    uint8 whoami = I2C_Read(0x68, 0x75);
+    char dbg[40];
+    snprintf(dbg, sizeof(dbg), "WHO_AM_I=0x%02X (expect 0x68)\r\n", whoami);
+    UART_SendString(dbg);
+
+    /* Also try alternate address 0x69 in case AD0 is high. */
+    uint8 whoami_alt = I2C_Read(0x69, 0x75);
+    snprintf(dbg, sizeof(dbg), "ALT WHO_AM_I=0x%02X\r\n", whoami_alt);
+    UART_SendString(dbg);
+
     MPU6050_Init();
-    UART_SendString("MPU OK\r\n");
+    UART_SendString("MPU INIT done\r\n");
 
     LCD_Init();
     UART_SendString("LCD OK\r\n");
@@ -114,7 +119,6 @@ int main(void){
         IMU_Data imu;
         MPU6050_Read(&imu.ax, &imu.ay, &imu.az, &imu.gx, &imu.gy, &imu.gz);
 
-        /* int32 cast BEFORE multiply — fixes the int16 overflow. */
         int32 ax32 = (int32)imu.ax;
         int32 ay32 = (int32)imu.ay;
         int32 az32 = (int32)imu.az;
@@ -129,7 +133,6 @@ int main(void){
         if (g_cg > CRASH_THRESHOLD_CG) crashLatched = 1;
         uint8 isCrash = crashLatched;
 
-        /* LCD line 1: status */
         LCD_SetCursor(0,0);
         if (isCrash){
             LCD_SendString("CRASH: YES     ");
@@ -139,14 +142,12 @@ int main(void){
             Car_Forward();
         }
 
-        /* LCD line 2: G value */
         LCD_SetCursor(1,0);
         snprintf(lcd_line, sizeof(lcd_line), "G:%d cg        ", g_cg);
         LCD_SendString(lcd_line);
 
         const char *status = isCrash ? "CRASH" : "SAFE";
 
-        /* Format A: legacy floats — G:1.04,X:0.05,Y:-0.01,Z:1.00,STATUS:SAFE */
         fmt_signed(gs, g_cg);
         fmt_signed(xs, ax_cg);
         fmt_signed(ys, ay_cg);
@@ -156,7 +157,6 @@ int main(void){
                  gs, xs, ys, zs, status);
         UART_SendString(buf);
 
-        /* Format B: integer cents — AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE */
         snprintf(buf, sizeof(buf),
                  "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:%s\r\n",
                  ax_cg, ay_cg, az_cg, g_cg, status);

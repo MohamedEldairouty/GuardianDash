@@ -267,23 +267,25 @@ function parseLine(line: string) {
   };
   store.setFrame(frame);
 
-  // Alert / status edge detection. The firmware latches ACCIDENT / specific
-  // ALERT values; we only react on transitions so the UI doesn't spam.
+  // Alert / status edge detection. The firmware latches the status field;
+  // we react only on transitions so the UI doesn't spam.
+  const rawStatus = strs.alert && strs.alert !== 'NONE' ? strs.alert : strs.status;
   const currentAlert =
-    (strs.alert && strs.alert !== 'NONE') ? strs.alert
-    : (strs.status === 'ACCIDENT' || strs.status === 'UNSAFE') ? 'ACCIDENT'
+    rawStatus === 'CRASH' || rawStatus === 'ACCIDENT' || rawStatus === 'UNSAFE' ? 'ACCIDENT'
+    : rawStatus === 'HARSH_BRAKE' ? 'HARSH_BRAKE'
+    : rawStatus === 'HARSH_ACCEL' ? 'HARSH_ACCEL'
     : 'NONE';
 
   if (currentAlert !== lastSeenStatus) {
-    if (currentAlert === 'HARSH_BRAKE' || currentAlert === 'HARSH_ACCEL') {
+    if (currentAlert === 'ACCIDENT') {
+      useCrashStore.getState().setPendingHardwareAccident(true);
+    } else if (currentAlert === 'HARSH_BRAKE' || currentAlert === 'HARSH_ACCEL') {
       useWarningsStore.getState().push({
         type: currentAlert,
         timestamp: Date.now(),
         gForce,
         location: store.liveGps ?? null,
       });
-    } else if (currentAlert === 'ACCIDENT' || currentAlert === 'CRASH') {
-      useCrashStore.getState().setPendingHardwareAccident(true);
     }
   }
   lastSeenStatus = currentAlert;

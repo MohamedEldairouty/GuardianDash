@@ -1,28 +1,9 @@
-<<<<<<< HEAD
-#include "../Inc/MCAL/UART/UART.h"
-
-int main(void){
-    UART_Init();
-    while(1){
-        UART_SendString("HELLO HM-10\r\n");
-        for(volatile int i=0; i<1000000;i++); // crude delay
-=======
 /*
- *  GuardianDash — Vehicle_BlackBox firmware
- *  ----------------------------------------
- *  STM32F401, MCAL structure. Inline UART (USART1) so the build never
- *  fails due to missing source paths.
- *
- *  Hardware:
- *      MPU6050  ── I2C1 (PB6 SCL, PB7 SDA), AD0 → GND  (addr 0x68)
- *      LCD 16x2 ── I2C1 backpack (addr 0x27)
- *      HM-10    ── USART1 (PA9 TX → HM-10 RX, PA10 RX ← HM-10 TX)
- *      L298     ── PORT_B  ENA=12 IN1=13 IN2=14 ENB=15 IN3=8 IN4=9
- *      Heartbeat LED on PC13
- *
- *  CSV line sent every 100 ms:
- *      AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE\r\n
- *  (values in centi-g; STATUS becomes CRASH when G > 1.50 g)
+ *  GuardianDash — Vehicle_BlackBox firmware (final)
+ *  ------------------------------------------------
+ *  Uses the WORKING UART module from Inc/MCAL/UART/ that proved HELLO
+ *  prints to the phone. Adds MPU6050 read, LCD output, motor control,
+ *  and sends BOTH CSV formats so every APK version parses them.
  */
 
 #include <stdio.h>
@@ -31,67 +12,12 @@ int main(void){
 #include "../Inc/MCAL/RCC/RCC.h"
 #include "../Inc/MCAL/Timer/Timer.h"
 #include "../Inc/MCAL/I2C/I2C.h"
+#include "../Inc/MCAL/UART/UART.h"
 #include "../Drivers/LCD/LCD.h"
 #include "../Drivers/MPU6050/MPU6050.h"
 
-/* ============================================================
- * INLINE UART (USART1 @ 9600 baud, PA9 TX / PA10 RX, AF7)
- * ============================================================ */
-#define U_RCC_AHB1ENR  (*(volatile uint32*)0x40023830UL)
-#define U_RCC_APB2ENR  (*(volatile uint32*)0x40023844UL)
-#define U_GPIOA_MODER  (*(volatile uint32*)0x40020000UL)
-#define U_GPIOA_AFRH   (*(volatile uint32*)0x40020024UL)
-#define U_GPIOC_MODER  (*(volatile uint32*)0x40020800UL)
-#define U_GPIOC_ODR    (*(volatile uint32*)0x40020814UL)
-#define U_USART1_SR    (*(volatile uint32*)0x40011000UL)
-#define U_USART1_DR    (*(volatile uint32*)0x40011004UL)
-#define U_USART1_BRR   (*(volatile uint32*)0x40011008UL)
-#define U_USART1_CR1   (*(volatile uint32*)0x4001100CUL)
-
-static void U_Init(void){
-    U_RCC_AHB1ENR |= (1U << 0);                       /* GPIOA */
-    U_RCC_AHB1ENR |= (1U << 2);                       /* GPIOC (LED) */
-    U_RCC_APB2ENR |= (1U << 4);                       /* USART1 */
-
-    U_GPIOC_MODER &= ~(3U << (13 * 2));
-    U_GPIOC_MODER |=  (1U << (13 * 2));               /* PC13 output */
-
-    U_GPIOA_MODER &= ~((3U << 18) | (3U << 20));
-    U_GPIOA_MODER |=  ((2U << 18) | (2U << 20));      /* PA9/PA10 AF */
-    U_GPIOA_AFRH  &= ~((0xFU << 4) | (0xFU << 8));
-    U_GPIOA_AFRH  |=  ((7U   << 4) | (7U   << 8));    /* AF7 */
-
-    U_USART1_CR1 = 0;
-    U_USART1_BRR = 0x683;                             /* 9600 @ 16 MHz */
-    U_USART1_CR1 |= (1U << 3);                        /* TE */
-    U_USART1_CR1 |= (1U << 13);                       /* UE */
-}
-
-static void U_SendChar(uint8 c){
-    while (!(U_USART1_SR & (1U << 7))) {}
-    U_USART1_DR = (uint32)c;
-}
-
-static void U_SendString(const char *s){
-    while (*s) U_SendChar((uint8)*s++);
-    while (!(U_USART1_SR & (1U << 6))) {}             /* TC */
-}
-
-static void Heartbeat(void){ U_GPIOC_ODR ^= (1U << 13); }
-
-/* Integer square root — for the magnitude calculation, no math.h. */
-static uint32 isqrt32(uint32 n){
-    if (n == 0) return 0;
-    uint32 x = n;
-    uint32 y = (x + 1U) >> 1;
-    while (y < x){ x = y; y = (x + n / x) >> 1; }
-    return x;
-}
-
-/* ============================================================
- * Application
- * ============================================================ */
-#define CRASH_THRESHOLD_CG 150   /* 1.50 g */
+/* ============================================================ */
+#define CRASH_THRESHOLD_CG 150       /* 1.50 g */
 
 #define ENA PIN_12
 #define IN1 PIN_13
@@ -121,8 +47,25 @@ static void Car_Stop(void){
     Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
 }
 
+/* Integer sqrt for the magnitude calculation. */
+static uint32 isqrt32(uint32 n){
+    if (n == 0) return 0;
+    uint32 x = n;
+    uint32 y = (x + 1U) >> 1;
+    while (y < x){ x = y; y = (x + n / x) >> 1; }
+    return x;
+}
+
+/* Build "1.04" / "-0.05" style strings from a centi-g integer. */
+static void fmt_signed(char *out, int v){
+    int w = v / 100;
+    int f = v % 100; if (f < 0) f = -f;
+    if (v < 0 && w == 0) snprintf(out, 10, "-0.%02d", f);
+    else                 snprintf(out, 10, "%d.%02d", w, f);
+}
+
 int main(void){
-    /* --- Bring up motor + LED ports first --- */
+    /* --- Motor port up first --- */
     RCC_EnableGPIO(MOTOR_PORT);
     ApplyDir(MOTOR_PORT, ENA, DIR_OUTPUT);
     ApplyDir(MOTOR_PORT, IN1, DIR_OUTPUT);
@@ -131,19 +74,18 @@ int main(void){
     ApplyDir(MOTOR_PORT, IN3, DIR_OUTPUT);
     ApplyDir(MOTOR_PORT, IN4, DIR_OUTPUT);
 
-    /* --- UART up FIRST — gives us a debug channel even if I2C hangs --- */
-    U_Init();
-    U_SendString("\r\nBLACKBOX BOOT\r\n");
+    /* --- UART first (using your friend's working module) --- */
+    UART_Init();
+    UART_SendString("\r\nBLACKBOX BOOT\r\n");
 
-    /* --- I2C + sensors --- */
     I2C_Init();
-    U_SendString("I2C OK\r\n");
+    UART_SendString("I2C OK\r\n");
 
     MPU6050_Init();
-    U_SendString("MPU OK\r\n");
+    UART_SendString("MPU OK\r\n");
 
     LCD_Init();
-    U_SendString("LCD OK\r\n");
+    UART_SendString("LCD OK\r\n");
 
     LCD_Clear();
     LCD_SetCursor(0,0);
@@ -151,36 +93,35 @@ int main(void){
     LCD_SetCursor(1,0);
     LCD_SendString("Monitoring     ");
 
-    U_SendString("READY\r\n");
+    UART_SendString("READY\r\n");
 
     Car_Forward();
 
-    char buf[96];
+    char buf[160];
+    char gs[10], xs[10], ys[10], zs[10];
     uint8 crashLatched = 0;
 
     while(1){
-        Heartbeat();
-
         IMU_Data imu;
         MPU6050_Read(&imu.ax, &imu.ay, &imu.az, &imu.gx, &imu.gy, &imu.gz);
 
-        /* Magnitude — cast to int32 BEFORE multiply to avoid int16 overflow. */
+        /* int32 cast BEFORE multiply — fixes the int16 overflow. */
         int32 ax32 = (int32)imu.ax;
         int32 ay32 = (int32)imu.ay;
         int32 az32 = (int32)imu.az;
         uint32 magsq = (uint32)(ax32*ax32) + (uint32)(ay32*ay32) + (uint32)(az32*az32);
         uint32 mag   = isqrt32(magsq);
 
-        /* Convert to centi-g (1 g = 16384 raw LSB at ±2 g full-scale). */
+        /* Convert to centi-g (1 g = 16384 raw LSB at ±2 g range). */
         int g_cg  = (int)((mag * 100U) / 16384U);
-        int ax_cg = (int)(((int32)imu.ax * 100) / 16384);
-        int ay_cg = (int)(((int32)imu.ay * 100) / 16384);
-        int az_cg = (int)(((int32)imu.az * 100) / 16384);
+        int ax_cg = (int)((ax32 * 100) / 16384);
+        int ay_cg = (int)((ay32 * 100) / 16384);
+        int az_cg = (int)((az32 * 100) / 16384);
 
         if (g_cg > CRASH_THRESHOLD_CG) crashLatched = 1;
         uint8 isCrash = crashLatched;
 
-        /* --- LCD --- */
+        /* LCD */
         LCD_SetCursor(0,0);
         if (isCrash){
             LCD_SendString("CRASH: YES     ");
@@ -194,14 +135,24 @@ int main(void){
         LCD_SendNumber((uint32)g_cg);
         LCD_SendString(" cg      ");
 
-        /* --- BLE / app feed --- */
+        const char *status = isCrash ? "CRASH" : "SAFE";
+
+        /* === Format A: legacy floats (G:1.04,X:0.05,...) === */
+        fmt_signed(gs, g_cg);
+        fmt_signed(xs, ax_cg);
+        fmt_signed(ys, ay_cg);
+        fmt_signed(zs, az_cg);
+        snprintf(buf, sizeof(buf),
+                 "G:%s,X:%s,Y:%s,Z:%s,STATUS:%s\r\n",
+                 gs, xs, ys, zs, status);
+        UART_SendString(buf);
+
+        /* === Format B: integer cents (AX:5,AY:-1,AZ:100,G:104,...) === */
         snprintf(buf, sizeof(buf),
                  "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:%s\r\n",
-                 ax_cg, ay_cg, az_cg, g_cg,
-                 isCrash ? "CRASH" : "SAFE");
-        U_SendString(buf);
+                 ax_cg, ay_cg, az_cg, g_cg, status);
+        UART_SendString(buf);
 
-        Timer_DelayMs(100);
->>>>>>> fea556802522e8c74b510d4f70f264c706952ce0
+        Timer_DelayMs(150);
     }
 }

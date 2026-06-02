@@ -1,175 +1,100 @@
-#include <stdio.h>
+/*
+ *  MINIMAL UART SMOKE TEST
+ *  =======================
+ *  Goal: prove that the STM32 → HM-10 → phone path works at the byte level.
+ *  No MPU6050. No LCD. No motors. Just LED blink + raw UART output.
+ *
+ *  If this works, swap back to the full main.c — that proves UART is fine
+ *  and the original main was hanging in MPU/LCD init.
+ *
+ *  If this DOESN'T work after a confirmed flash:
+ *      - HM-10 RX wire isn't actually on PA9 (loose breadboard)
+ *      - HM-10 was AT-commanded to a non-9600 baud
+ *      - HM-10 module is faulty
+ *      - GND not common between STM32 and HM-10
+ */
+
 #include "../Inc/Common/Std_Types.h"
-#include "../Inc/MCAL/DIO/DIO.h"
-#include "../Inc/MCAL/RCC/RCC.h"
-#include "../Inc/MCAL/Timer/Timer.h"
-#include "../Inc/MCAL/I2C/I2C.h"
-#include "../Drivers/LCD/LCD.h"
-#include "../Drivers/MPU6050/MPU6050.h"
 
-/* ============================================================
- * INLINE UART (USART1 @ 9600 baud, PA9 = TX, PA10 = RX, AF7)
- * No external file — just main.c. Can't fail the build.
- * ============================================================ */
-#define U1_RCC_AHB1ENR  (*(volatile uint32*)0x40023830UL)
-#define U1_RCC_APB2ENR  (*(volatile uint32*)0x40023844UL)
-#define U1_GPIOA_MODER  (*(volatile uint32*)0x40020000UL)
-#define U1_GPIOA_AFRH   (*(volatile uint32*)0x40020024UL)
-#define U1_USART1_SR    (*(volatile uint32*)0x40011000UL)
-#define U1_USART1_DR    (*(volatile uint32*)0x40011004UL)
-#define U1_USART1_BRR   (*(volatile uint32*)0x40011008UL)
-#define U1_USART1_CR1   (*(volatile uint32*)0x4001100CUL)
+/* === STM32F401 register base addresses === */
+#define RCC_AHB1ENR  (*(volatile uint32*)0x40023830UL)
+#define RCC_APB2ENR  (*(volatile uint32*)0x40023844UL)
 
-static void U1_Init(void){
-    U1_RCC_AHB1ENR |= (1U << 0);              /* GPIOA clock */
-    U1_RCC_APB2ENR |= (1U << 4);              /* USART1 clock */
-    U1_GPIOA_MODER &= ~((3U<<18) | (3U<<20)); /* clear PA9, PA10 */
-    U1_GPIOA_MODER |=  ((2U<<18) | (2U<<20)); /* AF mode */
-    U1_GPIOA_AFRH  &= ~((0xFU<<4) | (0xFU<<8));
-    U1_GPIOA_AFRH  |=  ((7U<<4)   | (7U<<8));  /* AF7 for PA9, PA10 */
-    U1_USART1_CR1 = 0;
-    U1_USART1_BRR = 0x683;                    /* 9600 baud @ 16 MHz HSI */
-    U1_USART1_CR1 |= (1U<<3);                 /* TE */
-    U1_USART1_CR1 |= (1U<<13);                /* UE */
+#define GPIOA_MODER  (*(volatile uint32*)0x40020000UL)
+#define GPIOA_AFRH   (*(volatile uint32*)0x40020024UL)
+
+#define GPIOC_MODER  (*(volatile uint32*)0x40020800UL)
+#define GPIOC_ODR    (*(volatile uint32*)0x40020814UL)
+
+#define USART1_SR    (*(volatile uint32*)0x40011000UL)
+#define USART1_DR    (*(volatile uint32*)0x40011004UL)
+#define USART1_BRR   (*(volatile uint32*)0x40011008UL)
+#define USART1_CR1   (*(volatile uint32*)0x4001100CUL)
+
+static void delay(volatile uint32 n){ while(n--) __asm__("nop"); }
+
+static void uart_send_char(uint8 c){
+    while (!(USART1_SR & (1U << 7))) {}    /* wait TXE */
+    USART1_DR = (uint32)c;
 }
 
-static void U1_SendChar(uint8 c){
-    while (!(U1_USART1_SR & (1U<<7))) {}      /* wait TXE */
-    U1_USART1_DR = (uint32)c;
-}
-
-static void U1_SendString(const char *s){
-    while (*s) { U1_SendChar((uint8)*s); s++; }
-    while (!(U1_USART1_SR & (1U<<6))) {}      /* wait TC */
-}
-/* ============================================================ */
-
-#define LED_PIN PIN_13
-#define LED_PORT PORT_C
-
-#define CRASH_THRESHOLD_CG 150  /* 1.50 g */
-
-#define ENA PIN_12
-#define IN1 PIN_13
-#define IN2 PIN_14
-#define ENB PIN_15
-#define IN3 PIN_8
-#define IN4 PIN_9
-#define MOTOR_PORT PORT_B
-
-typedef struct { int16 ax, ay, az; int16 gx, gy, gz; } IMU_Data;
-
-void Car_Forward(void){
-    Dio_WriteChannel(MOTOR_PORT, ENA, STD_HIGH);
-    Dio_WriteChannel(MOTOR_PORT, IN1, STD_HIGH);
-    Dio_WriteChannel(MOTOR_PORT, IN2, STD_LOW);
-    Dio_WriteChannel(MOTOR_PORT, ENB, STD_HIGH);
-    Dio_WriteChannel(MOTOR_PORT, IN3, STD_HIGH);
-    Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
-}
-
-void Car_Stop(void){
-    Dio_WriteChannel(MOTOR_PORT, ENA, STD_LOW);
-    Dio_WriteChannel(MOTOR_PORT, IN1, STD_LOW);
-    Dio_WriteChannel(MOTOR_PORT, IN2, STD_LOW);
-    Dio_WriteChannel(MOTOR_PORT, ENB, STD_LOW);
-    Dio_WriteChannel(MOTOR_PORT, IN3, STD_LOW);
-    Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
-}
-
-/* Integer square root (Newton's method) — no math.h needed. */
-static uint32 isqrt32(uint32 n){
-    if (n == 0) return 0;
-    uint32 x = n;
-    uint32 y = (x + 1U) >> 1;
-    while (y < x){
-        x = y;
-        y = (x + n / x) >> 1;
-    }
-    return x;
+static void uart_send_string(const char *s){
+    while (*s) uart_send_char((uint8)*s++);
+    while (!(USART1_SR & (1U << 6))) {}    /* wait TC */
 }
 
 int main(void){
-    RCC_EnableGPIO(LED_PORT);
-    RCC_EnableGPIO(MOTOR_PORT);
+    /* ---------- 1. Clocks ---------- */
+    RCC_AHB1ENR |= (1U << 0);              /* GPIOA */
+    RCC_AHB1ENR |= (1U << 2);              /* GPIOC (for the on-board LED on PC13) */
+    RCC_APB2ENR |= (1U << 4);              /* USART1 */
 
-    ApplyDir(LED_PORT, LED_PIN, DIR_OUTPUT);
+    /* ---------- 2. PC13 as output (most Black Pills have an LED here) ---------- */
+    GPIOC_MODER &= ~(3U << (13 * 2));
+    GPIOC_MODER |=  (1U << (13 * 2));
 
-    ApplyDir(MOTOR_PORT, ENA, DIR_OUTPUT);
-    ApplyDir(MOTOR_PORT, IN1, DIR_OUTPUT);
-    ApplyDir(MOTOR_PORT, IN2, DIR_OUTPUT);
-    ApplyDir(MOTOR_PORT, ENB, DIR_OUTPUT);
-    ApplyDir(MOTOR_PORT, IN3, DIR_OUTPUT);
-    ApplyDir(MOTOR_PORT, IN4, DIR_OUTPUT);
+    /* ---------- 3. PA9 (TX1), PA10 (RX1) as Alternate Function 7 ---------- */
+    GPIOA_MODER &= ~((3U << (9 * 2)) | (3U << (10 * 2)));
+    GPIOA_MODER |=  ((2U << (9 * 2)) | (2U << (10 * 2)));   /* AF mode */
+    GPIOA_AFRH  &= ~((0xFU << ((9  - 8) * 4)) | (0xFU << ((10 - 8) * 4)));
+    GPIOA_AFRH  |=  ((7U   << ((9  - 8) * 4)) | (7U   << ((10 - 8) * 4)));  /* AF7 */
 
-    /* Bring UART up FIRST so we can debug even if MPU/LCD init hangs. */
-    U1_Init();
-    U1_SendString("BOOT\r\n");
+    /* ---------- 4. USART1: 9600 baud @ 16 MHz HSI, 8-N-1, TX enabled ---------- */
+    USART1_CR1 = 0;
+    USART1_BRR = 0x683;                    /* round(16e6 / 9600) */
+    USART1_CR1 |= (1U << 3);               /* TE */
+    USART1_CR1 |= (1U << 13);              /* UE */
 
-    I2C_Init();
-    U1_SendString("I2C_OK\r\n");
+    delay(800000);                         /* HM-10 settle */
 
-    MPU6050_Init();
-    U1_SendString("MPU_OK\r\n");
+    uart_send_string("\r\n=========================\r\n");
+    uart_send_string("MINIMAL UART TEST RUNNING\r\n");
+    uart_send_string("=========================\r\n");
 
-    LCD_Init();
-    U1_SendString("LCD_OK\r\n");
+    uint32 counter = 0;
+    while (1) {
+        /* Toggle PC13 LED so we know the loop is alive even without UART. */
+        GPIOC_ODR ^= (1U << 13);
 
-    LCD_Clear();
-    LCD_SetCursor(0,0);
-    LCD_SendString("BlackBox Ready");
-    LCD_SetCursor(1,0);
-    LCD_SendString("Demo Mode");
+        /* Send a recognizable line to the phone every loop. */
+        char buf[64];
+        /* Manual integer-to-string to avoid pulling in <stdio.h>/snprintf. */
+        char *p = buf;
+        const char *prefix = "G:100,STATUS:SAFE,N:";
+        while (*prefix) *p++ = *prefix++;
 
-    U1_SendString("BLACKBOX READY\r\n");
-
-    Car_Forward();
-
-    char buf[96];
-    uint8 crashLatched = 0;
-
-    while(1){
-        IMU_Data imu;
-        MPU6050_Read(&imu.ax,&imu.ay,&imu.az,&imu.gx,&imu.gy,&imu.gz);
-
-        /* int32 cast BEFORE multiplication — fixes overflow bug. */
-        int32 ax32 = (int32)imu.ax;
-        int32 ay32 = (int32)imu.ay;
-        int32 az32 = (int32)imu.az;
-        uint32 magsq = (uint32)(ax32*ax32) + (uint32)(ay32*ay32) + (uint32)(az32*az32);
-
-        uint32 mag = isqrt32(magsq);
-        int g_cg = (int)((mag * 100U) / 16384U);
-
-        if (g_cg > CRASH_THRESHOLD_CG) crashLatched = 1;
-        uint8 isCrash = crashLatched;
-
-        LCD_SetCursor(0,0);
-        if(isCrash){
-            LCD_SendString("CRASH: YES ");
-            Car_Stop();
-        } else {
-            LCD_SendString("CRASH: NO  ");
-            Car_Forward();
+        /* Append counter as decimal. */
+        if (counter == 0) { *p++ = '0'; }
+        else {
+            char digs[12]; int n = 0;
+            uint32 v = counter;
+            while (v > 0) { digs[n++] = '0' + (v % 10); v /= 10; }
+            while (n--) *p++ = digs[n];
         }
+        *p++ = '\r'; *p++ = '\n'; *p = '\0';
+        uart_send_string(buf);
 
-        LCD_SetCursor(1,0);
-        LCD_SendString("G:");
-        LCD_SendNumber((uint32)g_cg);
-        LCD_SendString(" cg     ");
-
-        /* Send CSV to phone app. Everything in centi-g.
-         * Example: AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE */
-        int ax_cg = (int)(((int32)imu.ax * 100) / 16384);
-        int ay_cg = (int)(((int32)imu.ay * 100) / 16384);
-        int az_cg = (int)(((int32)imu.az * 100) / 16384);
-
-        snprintf(buf, sizeof(buf),
-                 "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:%s\r\n",
-                 ax_cg, ay_cg, az_cg, g_cg,
-                 isCrash ? "CRASH" : "SAFE");
-        U1_SendString(buf);
-
-        Timer_DelayMs(100);
+        counter++;
+        delay(3000000);                    /* ~roughly 1 second @ 16 MHz */
     }
 }

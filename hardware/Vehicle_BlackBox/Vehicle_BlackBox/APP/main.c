@@ -1,112 +1,197 @@
 /*
- *  STM32 → HM-10 → GuardianDash app
- *  Minimal, no I2C / no LCD / no MPU.
- *  Sends a parser-bulletproof CSV that EVERY version of the BLE parser
- *  recognizes — explicit AX/AY/AZ so isCents detection always triggers.
- *  Values wobble slightly so the dashboard looks alive.
+ *  GuardianDash — Vehicle_BlackBox firmware
+ *  ----------------------------------------
+ *  STM32F401, MCAL structure. Inline UART (USART1) so the build never
+ *  fails due to missing source paths.
+ *
+ *  Hardware:
+ *      MPU6050  ── I2C1 (PB6 SCL, PB7 SDA), AD0 → GND  (addr 0x68)
+ *      LCD 16x2 ── I2C1 backpack (addr 0x27)
+ *      HM-10    ── USART1 (PA9 TX → HM-10 RX, PA10 RX ← HM-10 TX)
+ *      L298     ── PORT_B  ENA=12 IN1=13 IN2=14 ENB=15 IN3=8 IN4=9
+ *      Heartbeat LED on PC13
+ *
+ *  CSV line sent every 100 ms:
+ *      AX:5,AY:-1,AZ:100,G:104,STATUS:SAFE\r\n
+ *  (values in centi-g; STATUS becomes CRASH when G > 1.50 g)
  */
 
+#include <stdio.h>
 #include "../Inc/Common/Std_Types.h"
+#include "../Inc/MCAL/DIO/DIO.h"
+#include "../Inc/MCAL/RCC/RCC.h"
+#include "../Inc/MCAL/Timer/Timer.h"
+#include "../Inc/MCAL/I2C/I2C.h"
+#include "../Drivers/LCD/LCD.h"
+#include "../Drivers/MPU6050/MPU6050.h"
 
-/* === Register addresses (STM32F401) === */
-#define RCC_AHB1ENR  (*(volatile uint32*)0x40023830UL)
-#define RCC_APB2ENR  (*(volatile uint32*)0x40023844UL)
+/* ============================================================
+ * INLINE UART (USART1 @ 9600 baud, PA9 TX / PA10 RX, AF7)
+ * ============================================================ */
+#define U_RCC_AHB1ENR  (*(volatile uint32*)0x40023830UL)
+#define U_RCC_APB2ENR  (*(volatile uint32*)0x40023844UL)
+#define U_GPIOA_MODER  (*(volatile uint32*)0x40020000UL)
+#define U_GPIOA_AFRH   (*(volatile uint32*)0x40020024UL)
+#define U_GPIOC_MODER  (*(volatile uint32*)0x40020800UL)
+#define U_GPIOC_ODR    (*(volatile uint32*)0x40020814UL)
+#define U_USART1_SR    (*(volatile uint32*)0x40011000UL)
+#define U_USART1_DR    (*(volatile uint32*)0x40011004UL)
+#define U_USART1_BRR   (*(volatile uint32*)0x40011008UL)
+#define U_USART1_CR1   (*(volatile uint32*)0x4001100CUL)
 
-#define GPIOA_MODER  (*(volatile uint32*)0x40020000UL)
-#define GPIOA_AFRH   (*(volatile uint32*)0x40020024UL)
+static void U_Init(void){
+    U_RCC_AHB1ENR |= (1U << 0);                       /* GPIOA */
+    U_RCC_AHB1ENR |= (1U << 2);                       /* GPIOC (LED) */
+    U_RCC_APB2ENR |= (1U << 4);                       /* USART1 */
 
-#define GPIOC_MODER  (*(volatile uint32*)0x40020800UL)
-#define GPIOC_ODR    (*(volatile uint32*)0x40020814UL)
+    U_GPIOC_MODER &= ~(3U << (13 * 2));
+    U_GPIOC_MODER |=  (1U << (13 * 2));               /* PC13 output */
 
-#define USART1_SR    (*(volatile uint32*)0x40011000UL)
-#define USART1_DR    (*(volatile uint32*)0x40011004UL)
-#define USART1_BRR   (*(volatile uint32*)0x40011008UL)
-#define USART1_CR1   (*(volatile uint32*)0x4001100CUL)
+    U_GPIOA_MODER &= ~((3U << 18) | (3U << 20));
+    U_GPIOA_MODER |=  ((2U << 18) | (2U << 20));      /* PA9/PA10 AF */
+    U_GPIOA_AFRH  &= ~((0xFU << 4) | (0xFU << 8));
+    U_GPIOA_AFRH  |=  ((7U   << 4) | (7U   << 8));    /* AF7 */
 
-static void delay(volatile uint32 n){ while(n--) __asm__("nop"); }
-
-static void u_send_char(uint8 c){
-    while (!(USART1_SR & (1U << 7))) {}
-    USART1_DR = (uint32)c;
+    U_USART1_CR1 = 0;
+    U_USART1_BRR = 0x683;                             /* 9600 @ 16 MHz */
+    U_USART1_CR1 |= (1U << 3);                        /* TE */
+    U_USART1_CR1 |= (1U << 13);                       /* UE */
 }
 
-static void u_send_str(const char *s){
-    while (*s) u_send_char((uint8)*s++);
-    while (!(USART1_SR & (1U << 6))) {}
+static void U_SendChar(uint8 c){
+    while (!(U_USART1_SR & (1U << 7))) {}
+    U_USART1_DR = (uint32)c;
 }
 
-/* Append signed integer, returns pointer to terminator. */
-static char* append_int(char *p, int32 v){
-    if (v < 0) { *p++ = '-'; v = -v; }
-    char digs[12]; int n = 0;
-    if (v == 0) { *p++ = '0'; return p; }
-    while (v > 0) { digs[n++] = (char)('0' + (uint32)(v % 10)); v /= 10; }
-    while (n--) *p++ = digs[n];
-    return p;
+static void U_SendString(const char *s){
+    while (*s) U_SendChar((uint8)*s++);
+    while (!(U_USART1_SR & (1U << 6))) {}             /* TC */
+}
+
+static void Heartbeat(void){ U_GPIOC_ODR ^= (1U << 13); }
+
+/* Integer square root — for the magnitude calculation, no math.h. */
+static uint32 isqrt32(uint32 n){
+    if (n == 0) return 0;
+    uint32 x = n;
+    uint32 y = (x + 1U) >> 1;
+    while (y < x){ x = y; y = (x + n / x) >> 1; }
+    return x;
+}
+
+/* ============================================================
+ * Application
+ * ============================================================ */
+#define CRASH_THRESHOLD_CG 150   /* 1.50 g */
+
+#define ENA PIN_12
+#define IN1 PIN_13
+#define IN2 PIN_14
+#define ENB PIN_15
+#define IN3 PIN_8
+#define IN4 PIN_9
+#define MOTOR_PORT PORT_B
+
+typedef struct { int16 ax, ay, az; int16 gx, gy, gz; } IMU_Data;
+
+static void Car_Forward(void){
+    Dio_WriteChannel(MOTOR_PORT, ENA, STD_HIGH);
+    Dio_WriteChannel(MOTOR_PORT, IN1, STD_HIGH);
+    Dio_WriteChannel(MOTOR_PORT, IN2, STD_LOW);
+    Dio_WriteChannel(MOTOR_PORT, ENB, STD_HIGH);
+    Dio_WriteChannel(MOTOR_PORT, IN3, STD_HIGH);
+    Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
+}
+
+static void Car_Stop(void){
+    Dio_WriteChannel(MOTOR_PORT, ENA, STD_LOW);
+    Dio_WriteChannel(MOTOR_PORT, IN1, STD_LOW);
+    Dio_WriteChannel(MOTOR_PORT, IN2, STD_LOW);
+    Dio_WriteChannel(MOTOR_PORT, ENB, STD_LOW);
+    Dio_WriteChannel(MOTOR_PORT, IN3, STD_LOW);
+    Dio_WriteChannel(MOTOR_PORT, IN4, STD_LOW);
 }
 
 int main(void){
-    /* Clocks */
-    RCC_AHB1ENR |= (1U << 0);             /* GPIOA */
-    RCC_AHB1ENR |= (1U << 2);             /* GPIOC (PC13 LED) */
-    RCC_APB2ENR |= (1U << 4);             /* USART1 */
+    /* --- Bring up motor + LED ports first --- */
+    RCC_EnableGPIO(MOTOR_PORT);
+    ApplyDir(MOTOR_PORT, ENA, DIR_OUTPUT);
+    ApplyDir(MOTOR_PORT, IN1, DIR_OUTPUT);
+    ApplyDir(MOTOR_PORT, IN2, DIR_OUTPUT);
+    ApplyDir(MOTOR_PORT, ENB, DIR_OUTPUT);
+    ApplyDir(MOTOR_PORT, IN3, DIR_OUTPUT);
+    ApplyDir(MOTOR_PORT, IN4, DIR_OUTPUT);
 
-    /* PC13 output (Black Pill LED) */
-    GPIOC_MODER &= ~(3U << (13 * 2));
-    GPIOC_MODER |=  (1U << (13 * 2));
+    /* --- UART up FIRST — gives us a debug channel even if I2C hangs --- */
+    U_Init();
+    U_SendString("\r\nBLACKBOX BOOT\r\n");
 
-    /* PA9 / PA10 → AF7 USART1 */
-    GPIOA_MODER &= ~((3U << 18) | (3U << 20));
-    GPIOA_MODER |=  ((2U << 18) | (2U << 20));
-    GPIOA_AFRH  &= ~((0xFU << 4) | (0xFU << 8));
-    GPIOA_AFRH  |=  ((7U   << 4) | (7U   << 8));
+    /* --- I2C + sensors --- */
+    I2C_Init();
+    U_SendString("I2C OK\r\n");
 
-    /* USART1: 9600 baud @ 16 MHz HSI */
-    USART1_CR1 = 0;
-    USART1_BRR = 0x683;
-    USART1_CR1 |= (1U << 3);              /* TE */
-    USART1_CR1 |= (1U << 13);             /* UE */
+    MPU6050_Init();
+    U_SendString("MPU OK\r\n");
 
-    delay(800000);
+    LCD_Init();
+    U_SendString("LCD OK\r\n");
 
-    u_send_str("\r\nBLACKBOX READY\r\n");
+    LCD_Clear();
+    LCD_SetCursor(0,0);
+    LCD_SendString("BlackBox Ready ");
+    LCD_SetCursor(1,0);
+    LCD_SendString("Monitoring     ");
 
-    int32 wobble = 0;
-    int32 dir = 1;
-    int32 frame_no = 0;
+    U_SendString("READY\r\n");
 
-    while (1) {
-        GPIOC_ODR ^= (1U << 13);          /* heartbeat LED */
+    Car_Forward();
 
-        /* Wobble az between 95 and 105 cg (0.95–1.05 g) so the dashboard
-         * looks alive instead of stuck at exactly 1.00. */
-        wobble += dir;
-        if (wobble > 5)  dir = -1;
-        if (wobble < -5) dir =  1;
-        int32 az_cg = 100 + wobble;
-        int32 g_cg  = 100 + (wobble < 0 ? -wobble : wobble);  /* abs */
-        int32 ax_cg = wobble / 2;
-        int32 ay_cg = -wobble / 3;
+    char buf[96];
+    uint8 crashLatched = 0;
 
-        /* Build line: AX:n,AY:n,AZ:n,G:n,STATUS:SAFE\r\n */
-        char buf[80];
-        char *p = buf;
-        const char *t;
+    while(1){
+        Heartbeat();
 
-        t = "AX:";   while (*t) *p++ = *t++;
-        p = append_int(p, ax_cg);
-        t = ",AY:";  while (*t) *p++ = *t++;
-        p = append_int(p, ay_cg);
-        t = ",AZ:";  while (*t) *p++ = *t++;
-        p = append_int(p, az_cg);
-        t = ",G:";   while (*t) *p++ = *t++;
-        p = append_int(p, g_cg);
-        t = ",STATUS:SAFE\r\n"; while (*t) *p++ = *t++;
-        *p = '\0';
+        IMU_Data imu;
+        MPU6050_Read(&imu.ax, &imu.ay, &imu.az, &imu.gx, &imu.gy, &imu.gz);
 
-        u_send_str(buf);
+        /* Magnitude — cast to int32 BEFORE multiply to avoid int16 overflow. */
+        int32 ax32 = (int32)imu.ax;
+        int32 ay32 = (int32)imu.ay;
+        int32 az32 = (int32)imu.az;
+        uint32 magsq = (uint32)(ax32*ax32) + (uint32)(ay32*ay32) + (uint32)(az32*az32);
+        uint32 mag   = isqrt32(magsq);
 
-        frame_no++;
-        delay(1200000);                   /* ~5 Hz */
+        /* Convert to centi-g (1 g = 16384 raw LSB at ±2 g full-scale). */
+        int g_cg  = (int)((mag * 100U) / 16384U);
+        int ax_cg = (int)(((int32)imu.ax * 100) / 16384);
+        int ay_cg = (int)(((int32)imu.ay * 100) / 16384);
+        int az_cg = (int)(((int32)imu.az * 100) / 16384);
+
+        if (g_cg > CRASH_THRESHOLD_CG) crashLatched = 1;
+        uint8 isCrash = crashLatched;
+
+        /* --- LCD --- */
+        LCD_SetCursor(0,0);
+        if (isCrash){
+            LCD_SendString("CRASH: YES     ");
+            Car_Stop();
+        } else {
+            LCD_SendString("CRASH: NO      ");
+            Car_Forward();
+        }
+        LCD_SetCursor(1,0);
+        LCD_SendString("G:");
+        LCD_SendNumber((uint32)g_cg);
+        LCD_SendString(" cg      ");
+
+        /* --- BLE / app feed --- */
+        snprintf(buf, sizeof(buf),
+                 "AX:%d,AY:%d,AZ:%d,G:%d,STATUS:%s\r\n",
+                 ax_cg, ay_cg, az_cg, g_cg,
+                 isCrash ? "CRASH" : "SAFE");
+        U_SendString(buf);
+
+        Timer_DelayMs(100);
     }
 }

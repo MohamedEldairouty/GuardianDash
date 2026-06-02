@@ -95,7 +95,9 @@ int main(void){
     UART_SendString(dbg);
 
     MPU6050_Init();
-    UART_SendString("MPU INIT done\r\n");
+    uint8 used_addr = MPU6050_GetAddress();
+    snprintf(dbg, sizeof(dbg), "MPU init done, using addr 0x%02X\r\n", used_addr);
+    UART_SendString(dbg);
 
     LCD_Init();
     UART_SendString("LCD OK\r\n");
